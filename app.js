@@ -13,7 +13,7 @@ import riskZoneRoutes from "./Routes/riskZoneRoutes.js";
 import communityReportRoutes from "./Routes/communityReportRoutes.js";
 import wildlifeConflictAlertRoutes from "./Routes/wildlifeConflictAlertRoutes.js";
 import responseActionRoutes from "./Routes/responseActionRoutes.js";
-import notificationRoutes from "./Routes/notificationRoutes.js";
+import conflictNotificationRoutes from "./Routes/conflictNotificationRoutes.js";
 
 dotenv.config();
 
@@ -66,7 +66,7 @@ app.use("/api/risk-zones", riskZoneRoutes);
 app.use("/api/community-reports", communityReportRoutes);
 app.use("/api/conflict-alerts", wildlifeConflictAlertRoutes);
 app.use("/api/response-actions", responseActionRoutes);
-app.use("/api/notifications", notificationRoutes);
+app.use("/api/conflict-notifications", conflictNotificationRoutes);
 
 
  

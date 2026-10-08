@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
 import { v4 as uuidv4 } from "uuid";
 
-const NOTIFICATION_STATUS = ["UNREAD", "READ", "SENT", "FAILED"];
+const CONFLICT_NOTIFICATION_STATUS = ["UNREAD", "READ", "SENT", "FAILED"];
 
-const notificationSchema = new mongoose.Schema(
+const conflictNotificationSchema = new mongoose.Schema(
   {
     notificationId: {
       type: String,
@@ -38,7 +38,7 @@ const notificationSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: NOTIFICATION_STATUS,
+      enum: CONFLICT_NOTIFICATION_STATUS,
       default: "UNREAD",
     },
   },
@@ -48,7 +48,7 @@ const notificationSchema = new mongoose.Schema(
 );
 
 // Instance method: send
-notificationSchema.methods.send = async function () {
+conflictNotificationSchema.methods.send = async function () {
   // In a real system this would trigger push/email/SMS.
   // Here we mark it as SENT and record sentAt.
   this.status = "SENT";
@@ -57,11 +57,11 @@ notificationSchema.methods.send = async function () {
 };
 
 // Instance method: markAsRead
-notificationSchema.methods.markAsRead = async function () {
+conflictNotificationSchema.methods.markAsRead = async function () {
   this.status = "READ";
   return this.save();
 };
 
-export { NOTIFICATION_STATUS };
-const Notification = mongoose.model("Notification", notificationSchema);
-export default Notification;
+export { CONFLICT_NOTIFICATION_STATUS };
+const ConflictNotification = mongoose.model("ConflictNotification", conflictNotificationSchema);
+export default ConflictNotification;

@@ -1,12 +1,12 @@
 import mongoose from "mongoose";
-import Notification, { NOTIFICATION_STATUS } from "../Models/Notification.js";
+import ConflictNotification, { CONFLICT_NOTIFICATION_STATUS } from "../Models/ConflictNotification.js";
 import WildlifeConflictAlert from "../Models/WildlifeConflictAlert.js";
 import User from "../Models/User.js";
 
 // ───────────────────────────────────────────────
-// POST /api/notifications
+// POST /api/conflict-notifications
 // ───────────────────────────────────────────────
-export const createNotification = async (req, res) => {
+export const createConflictNotification = async (req, res) => {
   try {
     const { alertId, recipient, message } = req.body;
 
@@ -47,33 +47,33 @@ export const createNotification = async (req, res) => {
       });
     }
 
-    const notification = await Notification.create({
+    const conflictNotification = await ConflictNotification.create({
       alertId,
       recipient,
       message,
     });
 
     // Automatically mark as sent on creation
-    await notification.send();
+    await conflictNotification.send();
 
     return res.status(201).json({
       success: true,
-      message: "Notification created and sent successfully",
-      notification,
+      message: "Conflict notification created and sent successfully",
+      conflictNotification,
     });
   } catch (error) {
-    console.error("CREATE NOTIFICATION ERROR:", error);
+    console.error("CREATE CONFLICT NOTIFICATION ERROR:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to create notification",
+      message: "Failed to create conflict notification",
     });
   }
 };
 
 // ───────────────────────────────────────────────
-// GET /api/notifications
+// GET /api/conflict-notifications
 // ───────────────────────────────────────────────
-export const getNotifications = async (req, res) => {
+export const getConflictNotifications = async (req, res) => {
   try {
     const { alertId, recipient } = req.query;
 
@@ -99,139 +99,139 @@ export const getNotifications = async (req, res) => {
       filter.recipient = recipient;
     }
 
-    const notifications = await Notification.find(filter)
+    const conflictNotifications = await ConflictNotification.find(filter)
       .populate("alertId", "alertId severity status latitude longitude")
       .populate("recipient", "firstName lastName email role")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
-      count: notifications.length,
-      notifications,
+      count: conflictNotifications.length,
+      conflictNotifications,
     });
   } catch (error) {
-    console.error("GET NOTIFICATIONS ERROR:", error);
+    console.error("GET CONFLICT NOTIFICATIONS ERROR:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to retrieve notifications",
+      message: "Failed to retrieve conflict notifications",
     });
   }
 };
 
 // ───────────────────────────────────────────────
-// GET /api/notifications/:id
+// GET /api/conflict-notifications/:id
 // ───────────────────────────────────────────────
-export const getNotificationById = async (req, res) => {
+export const getConflictNotificationById = async (req, res) => {
   try {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid notification ID",
+        message: "Invalid conflict notification ID",
       });
     }
 
-    const notification = await Notification.findById(id)
+    const conflictNotification = await ConflictNotification.findById(id)
       .populate("alertId", "alertId severity status latitude longitude")
       .populate("recipient", "firstName lastName email role");
 
-    if (!notification) {
+    if (!conflictNotification) {
       return res.status(404).json({
         success: false,
-        message: "Notification not found",
+        message: "Conflict notification not found",
       });
     }
 
     return res.status(200).json({
       success: true,
-      notification,
+      conflictNotification,
     });
   } catch (error) {
-    console.error("GET NOTIFICATION BY ID ERROR:", error);
+    console.error("GET CONFLICT NOTIFICATION BY ID ERROR:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to retrieve notification",
+      message: "Failed to retrieve conflict notification",
     });
   }
 };
 
 // ───────────────────────────────────────────────
-// PATCH /api/notifications/:id/read
+// PATCH /api/conflict-notifications/:id/read
 // ───────────────────────────────────────────────
-export const markNotificationAsRead = async (req, res) => {
+export const markConflictNotificationAsRead = async (req, res) => {
   try {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid notification ID",
+        message: "Invalid conflict notification ID",
       });
     }
 
-    const notification = await Notification.findById(id);
-    if (!notification) {
+    const conflictNotification = await ConflictNotification.findById(id);
+    if (!conflictNotification) {
       return res.status(404).json({
         success: false,
-        message: "Notification not found",
+        message: "Conflict notification not found",
       });
     }
 
-    if (notification.status === "READ") {
+    if (conflictNotification.status === "READ") {
       return res.status(400).json({
         success: false,
-        message: "Notification is already marked as read",
+        message: "Conflict notification is already marked as read",
       });
     }
 
-    await notification.markAsRead();
+    await conflictNotification.markAsRead();
 
     return res.status(200).json({
       success: true,
-      message: "Notification marked as read",
-      notification,
+      message: "Conflict notification marked as read",
+      conflictNotification,
     });
   } catch (error) {
-    console.error("MARK NOTIFICATION AS READ ERROR:", error);
+    console.error("MARK CONFLICT NOTIFICATION AS READ ERROR:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to mark notification as read",
+      message: "Failed to mark conflict notification as read",
     });
   }
 };
 
 // ───────────────────────────────────────────────
-// DELETE /api/notifications/:id
+// DELETE /api/conflict-notifications/:id
 // ───────────────────────────────────────────────
-export const deleteNotification = async (req, res) => {
+export const deleteConflictNotification = async (req, res) => {
   try {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid notification ID",
+        message: "Invalid conflict notification ID",
       });
     }
 
-    const notification = await Notification.findByIdAndDelete(id);
-    if (!notification) {
+    const conflictNotification = await ConflictNotification.findByIdAndDelete(id);
+    if (!conflictNotification) {
       return res.status(404).json({
         success: false,
-        message: "Notification not found",
+        message: "Conflict notification not found",
       });
     }
 
     return res.status(200).json({
       success: true,
-      message: "Notification deleted successfully",
+      message: "Conflict notification deleted successfully",
     });
   } catch (error) {
-    console.error("DELETE NOTIFICATION ERROR:", error);
+    console.error("DELETE CONFLICT NOTIFICATION ERROR:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to delete notification",
+      message: "Failed to delete conflict notification",
     });
   }
 };
