@@ -4,7 +4,9 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon app.js"
+    "start": "nodemon app.js",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --verbose",
+    "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage --verbose"
   },
   "keywords": [],
   "author": "",
@@ -14,16 +16,19 @@
     "bcryptjs": "^3.0.3",
     "cloudinary": "^1.41.3",
     "cors": "^2.8.6",
-    "dotenv": "^18.0.3",
+    "dotenv": "^18.0.6",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.10.1",
+    "mongoose": "^9.11.1",
     "multer": "^2.4.0",
     "multer-storage-cloudinary": "^4.0.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
-    "nodemon": "^1.14.10"
+    "jest": "^30.5.2",
+    "mongodb-memory-server": "^11.3.0",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.3.1"
   }
 }

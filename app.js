@@ -57,6 +57,10 @@ connectDB();
 
  
 
+import incidentRoutes from "./routes/incidentRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import errorHandler from "./middleware/errorHandler.js";
+
 app.use("/api/auth", authRoutes);
 
 // Wildlife Conflict Alerts & Response module
@@ -70,6 +74,8 @@ app.use("/api/conflict-notifications", conflictNotificationRoutes);
 
 
  
+app.use("/api/incidents", incidentRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.get("/", (req, res) => {
   res.status(200).json({
@@ -78,8 +84,7 @@ app.get("/", (req, res) => {
   });
 });
 
-
- 
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
