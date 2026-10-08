@@ -1,0 +1,305 @@
+{
+  "info": {
+    "_postman_id": "9da9c43e-b694-4b56-8608-4b2f5f1a0001",
+    "name": "EcoGuard CentralSystem - Manage Ranger Patrols",
+    "description": "Contract smoke tests for the local CentralSystem API. Run the requests in order after seeding the database.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api"
+    },
+    {
+      "key": "rangerId",
+      "value": "c9b84b3a-48eb-4f32-92e6-1dbba9a5f001"
+    },
+    {
+      "key": "parkManagerId",
+      "value": "2f066090-4a1f-42ce-9a5b-6f3a7c7d1002"
+    },
+    {
+      "key": "routeId",
+      "value": "7fa42db7-89e1-49ba-8bc7-bb4ddb3c2001"
+    },
+    {
+      "key": "assignmentId",
+      "value": "eb931813-178e-4974-b504-58c4ab4b3001"
+    },
+    {
+      "key": "patrolId",
+      "value": "a5c283bb-0415-45d2-9708-5b8c3c4a5001"
+    },
+    {
+      "key": "waypointId",
+      "value": "7d32b550-fccf-4cc5-a86d-9f91b1756001"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('health returns 200 and ok', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json()).to.eql({ status: 'ok' });",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. List routes (Ranger)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-User-Id",
+            "value": "{{rangerId}}"
+          }
+        ],
+        "url": "{{baseUrl}}/routes"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('routes returns a seeded route list', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json()).to.be.an('array').that.is.not.empty;",
+              "  pm.expect(pm.response.json()[0]).to.have.property('routeId');",
+              "  pm.expect(pm.response.json()[0]).not.to.have.property('_id');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Get Ranger assignment",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-User-Id",
+            "value": "{{rangerId}}"
+          }
+        ],
+        "url": "{{baseUrl}}/rangers/{{rangerId}}/assignment"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('assignment and nested route are returned', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.rangerId).to.eql(pm.collectionVariables.get('rangerId'));",
+              "  pm.expect(body.route).to.have.property('routeId');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Assign route (Park Manager)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-User-Id",
+            "value": "{{parkManagerId}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"rangerId\": \"{{rangerId}}\",\n  \"routeId\": \"{{routeId}}\",\n  \"assignedDate\": \"2026-10-08T12:00:00.000Z\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/assignments"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('manager creates an assignment', function () {",
+              "  pm.response.to.have.status(201);",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.rangerId).to.eql(pm.collectionVariables.get('rangerId'));",
+              "  pm.expect(body.route.routeId).to.eql(pm.collectionVariables.get('routeId'));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Sync completed patrol (Ranger)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-User-Id",
+            "value": "{{rangerId}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patrolId\": \"{{patrolId}}\",\n  \"assignmentId\": \"{{assignmentId}}\",\n  \"startTime\": \"2026-10-08T08:00:00.000Z\",\n  \"endTime\": \"2026-10-08T10:00:00.000Z\",\n  \"status\": \"COMPLETED\",\n  \"syncStatus\": \"PENDING_SYNC\",\n  \"totalDistance\": 8.4,\n  \"waypoints\": [\n    {\n      \"waypointId\": \"{{waypointId}}\",\n      \"latitude\": 7.8731,\n      \"longitude\": 80.7718,\n      \"altitude\": 120,\n      \"timestamp\": \"2026-10-08T08:45:00.000Z\",\n      \"type\": \"AUTOMATIC\",\n      \"description\": \"\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/patrols/sync"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('completed patrol sync returns SYNCED', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json()).to.eql({",
+              "    result: 'SYNCED',",
+              "    patrolId: pm.collectionVariables.get('patrolId')",
+              "  });",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. List patrols (Park Manager)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-User-Id",
+            "value": "{{parkManagerId}}"
+          }
+        ],
+        "url": "{{baseUrl}}/patrols"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('manager sees the synced patrol', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const patrols = pm.response.json();",
+              "  pm.expect(patrols.some(function (patrol) { return patrol.patrolId === pm.collectionVariables.get('patrolId'); })).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Review patrol coverage (Park Manager)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-User-Id",
+            "value": "{{parkManagerId}}"
+          }
+        ],
+        "url": "{{baseUrl}}/patrols/{{patrolId}}/coverage"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('coverage report includes covered and neglected points', function () {",
+              "  pm.response.to.have.status(200);",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.patrolId).to.eql(pm.collectionVariables.get('patrolId'));",
+              "  pm.expect(body).to.have.property('coveragePercentage');",
+              "  pm.expect(body).to.have.property('coveredPoints');",
+              "  pm.expect(body.neglectedPoints).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Invalid sync returns validation errors",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-User-Id",
+            "value": "{{rangerId}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patrolId\": \"not-a-uuid\",\n  \"status\": \"IN_PROGRESS\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/patrols/sync"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('invalid body returns 400 and errors array', function () {",
+              "  pm.response.to.have.status(400);",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.code).to.eql('VALIDATION_ERROR');",
+              "  pm.expect(body.errors).to.be.an('array').that.is.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

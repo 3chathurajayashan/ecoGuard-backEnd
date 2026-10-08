@@ -30,6 +30,16 @@ npm start
 
 The server listens at `http://localhost:5000`. Send the seeded user's UUID in `X-User-Id`; no login/session/token workflow is implemented. Patrol-sync requests are rate limited. JSON request bodies are limited to 256 KB.
 
+## Check with Postman
+
+1. Start MongoDB (local MongoDB Community service or MongoDB Atlas) and set `MONGO_URI` in `.env`. The `.env.example` URI assumes a MongoDB server on `127.0.0.1:27017`; MongoDB must be installed/running separately.
+2. In a terminal opened in `server/`, run `npm run seed` and confirm it prints the Ranger, Park Manager, route, and assignment IDs.
+3. In a second terminal, run `npm run dev`. Wait for `CentralSystem listening on port 5000`.
+4. In Postman, select **Import**, choose `postman/CentralSystem.postman_collection.json`, then run the requests in order. The imported collection contains the seeded UUIDs, sends the appropriate `X-User-Id` per role, and includes response assertions.
+5. Start with **1. Health**. Expected response: `200 { "status": "ok" }`. If that works, continue through **8. Invalid sync returns validation errors**; its expected status is `400` with an `errors` array.
+
+If a request reports `ECONNREFUSED`, confirm the backend is running and the URL uses port `5000`. If server startup or `npm run seed` reports a MongoDB connection error, start MongoDB or replace `MONGO_URI` with a reachable Atlas connection URI.
+
 ## Test and quality
 
 ```sh
