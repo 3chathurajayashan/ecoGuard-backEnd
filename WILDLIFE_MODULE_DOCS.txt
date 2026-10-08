@@ -1,0 +1,886 @@
+================================================================================
+  ECOGUARD BACKEND — WILDLIFE CONFLICT ALERTS & RESPONSE MODULE
+  Documentation: Updates, Endpoints & Postman Testing Guide
+================================================================================
+
+BASE URL: http://localhost:5001
+
+
+================================================================================
+  SECTION 1: UPDATES MADE
+================================================================================
+
+DEPENDENCY ADDED
+----------------
+  - uuid@9.0.1  (npm install uuid@9.0.1)
+    Used to auto-generate UUID values for all business-level ID fields
+    (animalId, collarId, zoneId, reportId, alertId, responseId, notificationId)
+
+
+FILES CREATED
+-------------
+
+  Models/
+    Animal.js               — TrackedAnimal model
+    GPSCollar.js            — GPS Collar model (1-to-1 with Animal)
+    RiskZone.js             — Risk Zone model with GeoJSON Polygon boundary
+    CommunityReport.js      — Community Report model
+    WildlifeConflictAlert.js — Wildlife Conflict Alert model
+    ResponseAction.js       — Response Action model (linked to Alert)
+    Notification.js         — Notification model (linked to Alert + User)
+
+  Controllers/
+    animalController.js
+    gpsCollarController.js
+    riskZoneController.js
+    communityReportController.js
+    wildlifeConflictAlertController.js
+    responseActionController.js
+    notificationController.js
+
+  Routes/
+    animalRoutes.js
+    gpsCollarRoutes.js
+    riskZoneRoutes.js
+    communityReportRoutes.js
+    wildlifeConflictAlertRoutes.js
+    responseActionRoutes.js
+    notificationRoutes.js
+
+
+FILES MODIFIED
+--------------
+
+  app.js
+    - Fixed import path casing: "./routes/authRoutes.js" -> "./Routes/authRoutes.js"
+    - Added 7 new route imports (wildlife module)
+    - Registered 7 new route prefixes:
+        app.use("/api/animals", animalRoutes)
+        app.use("/api/gps-collars", gpsCollarRoutes)
+        app.use("/api/risk-zones", riskZoneRoutes)
+        app.use("/api/community-reports", communityReportRoutes)
+        app.use("/api/conflict-alerts", wildlifeConflictAlertRoutes)
+        app.use("/api/response-actions", responseActionRoutes)
+        app.use("/api/notifications", notificationRoutes)
+
+
+MODEL DETAILS & ENUM VALUES
+----------------------------
+
+  Animal
+    riskStatus:   LOW | MEDIUM | HIGH | CRITICAL
+
+  GPSCollar
+    status:       ACTIVE | INACTIVE | MAINTENANCE | LOST
+
+  RiskZone
+    zoneType:     BUFFER_ZONE | HIGH_RISK_AREA | COMMUNITY_SETTLEMENT |
+                  WATER_SOURCE | MIGRATION_CORRIDOR
+    boundary:     GeoJSON Polygon { type: "Polygon", coordinates: [[[lon,lat],...]] }
+
+  CommunityReport
+    reportType:   ANIMAL_SIGHTING | CROP_DAMAGE | LIVESTOCK_ATTACK |
+                  HUMAN_INJURY | OTHER
+    status:       PENDING | UNDER_REVIEW | RESOLVED | DISMISSED
+
+  WildlifeConflictAlert
+    severity:     LOW | MEDIUM | HIGH | CRITICAL
+    status:       NEW | ACKNOWLEDGED | IN_PROGRESS | CLOSED
+
+  ResponseAction
+    status:       PENDING | IN_PROGRESS | COMPLETED | CANCELLED
+    syncStatus:   SYNCED | PENDING_SYNC | FAILED
+
+  Notification
+    status:       UNREAD | READ | SENT | FAILED
+
+  User roles (existing, reused)
+    RANGER | COMMUNITY_LIAISON_OFFICER | PARK_MANAGER | CONSERVATION_RESEARCHER
+
+
+DESIGN DECISIONS
+----------------
+  1. No new FieldOfficer model created. Existing User model is reused.
+     Officer assignment only accepts users with role RANGER or COMMUNITY_LIAISON_OFFICER.
+
+  2. All routes are protected by the existing requireAuth session middleware.
+
+  3. RiskZone boundary uses MongoDB GeoJSON + 2dsphere index.
+     checkLocationInRiskZone uses $geoIntersects for accurate polygon containment.
+
+  4. Creating a ResponseAction automatically advances a NEW or ACKNOWLEDGED alert
+     to IN_PROGRESS status to reflect the real response workflow.
+
+  5. Notification.send() is called automatically on creation, recording sentAt
+     and setting status to SENT.
+
+  6. The validate() method was renamed to validateReport() on CommunityReport
+     because Mongoose reserves the name "validate" internally.
+
+
+================================================================================
+  SECTION 2: HOW TO RUN THE BACKEND
+================================================================================
+
+  Prerequisites:
+    - Node.js v18+
+    - MongoDB URI configured in .env as MONGO_URI
+    - SESSION_SECRET configured in .env
+
+  Start:
+    npm start
+    (runs: nodemon app.js)
+
+  Expected output:
+    Server running on port 5001
+    MongoDB connected: <host>
+    Database: ecoguard
+
+
+================================================================================
+  SECTION 3: POSTMAN TESTING — AUTHENTICATION FIRST
+================================================================================
+
+  All wildlife module endpoints require a valid session cookie.
+  In Postman, enable "Automatically follow redirects" and keep cookies active.
+
+  ── STEP 1: Register a test user (if not already done) ──────────────────────
+
+  POST http://localhost:5001/api/auth/signup
+  Content-Type: application/json
+
+  {
+    "firstName": "John",
+    "lastName": "Ranger",
+    "email": "ranger@ecoguard.com",
+    "password": "password123",
+    "phoneNumber": "0771234567",
+    "role": "RANGER"
+  }
+
+  ── STEP 2: Register a Park Manager ─────────────────────────────────────────
+
+  POST http://localhost:5001/api/auth/signup
+  Content-Type: application/json
+
+  {
+    "firstName": "Sarah",
+    "lastName": "Manager",
+    "email": "manager@ecoguard.com",
+    "password": "password123",
+    "phoneNumber": "0779876543",
+    "role": "PARK_MANAGER"
+  }
+
+  ── STEP 3: Sign in (creates session cookie) ────────────────────────────────
+
+  POST http://localhost:5001/api/auth/signin
+  Content-Type: application/json
+
+  {
+    "email": "ranger@ecoguard.com",
+    "password": "password123"
+  }
+
+  Expected response:
+  {
+    "success": true,
+    "message": "Login successful",
+    "user": {
+      "id": "<userId>",       <-- SAVE THIS
+      "firstName": "John",
+      "lastName": "Ranger",
+      "email": "ranger@ecoguard.com",
+      "role": "RANGER"
+    }
+  }
+
+  NOTE: Save the returned user "id" — you will need it for officer assignment
+        and notification recipient fields.
+
+
+================================================================================
+  SECTION 4: ANIMAL ENDPOINTS
+================================================================================
+
+  ── CREATE ANIMAL ────────────────────────────────────────────────────────────
+  POST http://localhost:5001/api/animals
+  Content-Type: application/json
+
+  {
+    "species": "African Elephant",
+    "identifier": "EL-001",
+    "riskStatus": "LOW"
+  }
+
+  Expected: 201 Created
+  Save the returned "_id" as <animalId>
+
+  ── CREATE A SECOND ANIMAL ───────────────────────────────────────────────────
+  POST http://localhost:5001/api/animals
+  Content-Type: application/json
+
+  {
+    "species": "Cape Buffalo",
+    "identifier": "BUF-001",
+    "riskStatus": "MEDIUM"
+  }
+
+  ── GET ALL ANIMALS ──────────────────────────────────────────────────────────
+  GET http://localhost:5001/api/animals
+
+  Expected: 200 OK with list of animals
+
+  ── GET ANIMAL BY ID ─────────────────────────────────────────────────────────
+  GET http://localhost:5001/api/animals/<animalId>
+
+  ── UPDATE ANIMAL ────────────────────────────────────────────────────────────
+  PUT http://localhost:5001/api/animals/<animalId>
+  Content-Type: application/json
+
+  {
+    "species": "African Bush Elephant",
+    "identifier": "EL-001",
+    "riskStatus": "MEDIUM"
+  }
+
+  ── UPDATE RISK STATUS ───────────────────────────────────────────────────────
+  PATCH http://localhost:5001/api/animals/<animalId>/risk-status
+  Content-Type: application/json
+
+  {
+    "riskStatus": "HIGH"
+  }
+
+  Expected: 200 OK, riskStatus updated
+
+  ── DELETE ANIMAL ────────────────────────────────────────────────────────────
+  DELETE http://localhost:5001/api/animals/<animalId>
+
+  Expected: 200 OK
+
+  ── VALIDATION TESTS ─────────────────────────────────────────────────────────
+
+  Missing required field:
+  POST http://localhost:5001/api/animals
+  { "species": "Lion" }
+  Expected: 400 Bad Request
+
+  Duplicate identifier:
+  POST http://localhost:5001/api/animals
+  { "species": "Elephant", "identifier": "EL-001", "riskStatus": "LOW" }
+  POST same body again
+  Expected: 409 Conflict
+
+  Invalid riskStatus:
+  POST http://localhost:5001/api/animals
+  { "species": "Rhino", "identifier": "RH-001", "riskStatus": "EXTREME" }
+  Expected: 400 Bad Request
+
+
+================================================================================
+  SECTION 5: GPS COLLAR ENDPOINTS
+================================================================================
+
+  First, create an animal and save its _id as <animalId>
+
+  ── CREATE GPS COLLAR ────────────────────────────────────────────────────────
+  POST http://localhost:5001/api/gps-collars
+  Content-Type: application/json
+
+  {
+    "animalId": "<animalId>",
+    "status": "ACTIVE",
+    "lastLatitude": -2.5234,
+    "lastLongitude": 37.8452
+  }
+
+  Expected: 201 Created
+  Save the returned "_id" as <collarId>
+
+  ── GET ALL GPS COLLARS ──────────────────────────────────────────────────────
+  GET http://localhost:5001/api/gps-collars
+
+  ── GET GPS COLLAR BY ID ─────────────────────────────────────────────────────
+  GET http://localhost:5001/api/gps-collars/<collarId>
+
+  ── UPDATE GPS LOCATION ──────────────────────────────────────────────────────
+  PATCH http://localhost:5001/api/gps-collars/<collarId>/location
+  Content-Type: application/json
+
+  {
+    "latitude": -2.6145,
+    "longitude": 37.9023
+  }
+
+  Expected: 200 OK, lastLatitude/lastLongitude/lastUpdated updated
+
+  ── UPDATE GPS COLLAR STATUS ─────────────────────────────────────────────────
+  PUT http://localhost:5001/api/gps-collars/<collarId>
+  Content-Type: application/json
+
+  {
+    "status": "MAINTENANCE"
+  }
+
+  ── DELETE GPS COLLAR ────────────────────────────────────────────────────────
+  DELETE http://localhost:5001/api/gps-collars/<collarId>
+
+  ── VALIDATION TESTS ─────────────────────────────────────────────────────────
+
+  Duplicate collar for same animal:
+  POST /api/gps-collars with the same animalId twice
+  Expected: 409 Conflict
+
+  Invalid coordinates:
+  PATCH /api/gps-collars/<collarId>/location
+  { "latitude": 200, "longitude": 37.9 }
+  Expected: 400 Bad Request
+
+
+================================================================================
+  SECTION 6: RISK ZONE ENDPOINTS
+================================================================================
+
+  IMPORTANT: GeoJSON coordinates are [longitude, latitude] (lon first)
+             and the polygon ring must close (first == last point)
+
+  ── CREATE RISK ZONE ─────────────────────────────────────────────────────────
+  POST http://localhost:5001/api/risk-zones
+  Content-Type: application/json
+
+  {
+    "name": "Northern Buffer Zone",
+    "zoneType": "BUFFER_ZONE",
+    "description": "Buffer zone along the northern park boundary",
+    "boundary": {
+      "type": "Polygon",
+      "coordinates": [[
+        [37.80, -2.50],
+        [37.95, -2.50],
+        [37.95, -2.60],
+        [37.80, -2.60],
+        [37.80, -2.50]
+      ]]
+    }
+  }
+
+  Expected: 201 Created
+  Save the returned "_id" as <riskZoneId>
+
+  ── CREATE A SECOND RISK ZONE ────────────────────────────────────────────────
+  POST http://localhost:5001/api/risk-zones
+  Content-Type: application/json
+
+  {
+    "name": "Community Settlement East",
+    "zoneType": "COMMUNITY_SETTLEMENT",
+    "description": "Eastern community farming area",
+    "boundary": {
+      "type": "Polygon",
+      "coordinates": [[
+        [38.10, -2.70],
+        [38.25, -2.70],
+        [38.25, -2.85],
+        [38.10, -2.85],
+        [38.10, -2.70]
+      ]]
+    }
+  }
+
+  ── GET ALL RISK ZONES ───────────────────────────────────────────────────────
+  GET http://localhost:5001/api/risk-zones
+
+  ── GET RISK ZONE BY ID ──────────────────────────────────────────────────────
+  GET http://localhost:5001/api/risk-zones/<riskZoneId>
+
+  ── UPDATE RISK ZONE ─────────────────────────────────────────────────────────
+  PUT http://localhost:5001/api/risk-zones/<riskZoneId>
+  Content-Type: application/json
+
+  {
+    "name": "Northern Buffer Zone (Updated)",
+    "zoneType": "HIGH_RISK_AREA",
+    "description": "Reclassified as high risk due to recent incidents"
+  }
+
+  ── CHECK IF LOCATION IS INSIDE A RISK ZONE ──────────────────────────────────
+  GET http://localhost:5001/api/risk-zones/check-location?lat=-2.55&lon=37.87
+
+  Expected (point inside Northern Buffer Zone):
+  {
+    "success": true,
+    "isInsideRiskZone": true,
+    "matchingZones": [{ ... }]
+  }
+
+  Test a point OUTSIDE all zones:
+  GET http://localhost:5001/api/risk-zones/check-location?lat=0.0&lon=0.0
+
+  Expected:
+  {
+    "success": true,
+    "isInsideRiskZone": false,
+    "matchingZones": []
+  }
+
+  ── DELETE RISK ZONE ─────────────────────────────────────────────────────────
+  DELETE http://localhost:5001/api/risk-zones/<riskZoneId>
+
+  ── VALIDATION TESTS ─────────────────────────────────────────────────────────
+
+  Invalid boundary:
+  POST /api/risk-zones
+  { "name": "Bad Zone", "zoneType": "BUFFER_ZONE", "boundary": { "type": "Point", "coordinates": [37.8, -2.5] } }
+  Expected: 400 Bad Request
+
+  Missing lat/lon in check:
+  GET /api/risk-zones/check-location?lat=-2.55
+  Expected: 400 Bad Request
+
+
+================================================================================
+  SECTION 7: COMMUNITY REPORT ENDPOINTS
+================================================================================
+
+  ── CREATE COMMUNITY REPORT ──────────────────────────────────────────────────
+  POST http://localhost:5001/api/community-reports
+  Content-Type: application/json
+
+  {
+    "reportType": "ANIMAL_SIGHTING",
+    "latitude": -2.5900,
+    "longitude": 37.8750,
+    "description": "Large elephant herd spotted moving towards the village near the eastern boundary. Approximately 15 elephants including 3 young calves.",
+    "reportedBy": "<userId>"
+  }
+
+  Expected: 201 Created
+  Save the returned "_id" as <reportId>
+
+  ── CREATE A CROP DAMAGE REPORT ──────────────────────────────────────────────
+  POST http://localhost:5001/api/community-reports
+  Content-Type: application/json
+
+  {
+    "reportType": "CROP_DAMAGE",
+    "latitude": -2.7200,
+    "longitude": 38.1500,
+    "description": "Buffalo herd has destroyed approximately 2 acres of maize crops overnight. Farmer requests immediate assistance.",
+    "reportedBy": "<userId>"
+  }
+
+  ── GET ALL COMMUNITY REPORTS ────────────────────────────────────────────────
+  GET http://localhost:5001/api/community-reports
+
+  ── GET COMMUNITY REPORT BY ID ───────────────────────────────────────────────
+  GET http://localhost:5001/api/community-reports/<reportId>
+
+  ── UPDATE COMMUNITY REPORT ──────────────────────────────────────────────────
+  PUT http://localhost:5001/api/community-reports/<reportId>
+  Content-Type: application/json
+
+  {
+    "description": "Large elephant herd spotted — updated count is 20 elephants. Moving northeast."
+  }
+
+  ── UPDATE REPORT STATUS ─────────────────────────────────────────────────────
+  PATCH http://localhost:5001/api/community-reports/<reportId>/status
+  Content-Type: application/json
+
+  {
+    "status": "UNDER_REVIEW"
+  }
+
+  Then resolve it:
+  PATCH http://localhost:5001/api/community-reports/<reportId>/status
+  { "status": "RESOLVED" }
+
+  ── DELETE COMMUNITY REPORT ──────────────────────────────────────────────────
+  DELETE http://localhost:5001/api/community-reports/<reportId>
+
+  ── VALIDATION TESTS ─────────────────────────────────────────────────────────
+
+  Invalid reportType:
+  POST /api/community-reports
+  { "reportType": "FLOOD", "latitude": -2.5, "longitude": 37.8, "description": "test" }
+  Expected: 400 Bad Request
+
+  Missing description:
+  POST /api/community-reports
+  { "reportType": "CROP_DAMAGE", "latitude": -2.5, "longitude": 37.8 }
+  Expected: 400 Bad Request
+
+
+================================================================================
+  SECTION 8: WILDLIFE CONFLICT ALERT ENDPOINTS
+================================================================================
+
+  ── CREATE CONFLICT ALERT (manual) ───────────────────────────────────────────
+  POST http://localhost:5001/api/conflict-alerts
+  Content-Type: application/json
+
+  {
+    "latitude": -2.5900,
+    "longitude": 37.8750,
+    "severity": "HIGH",
+    "description": "Elephant herd approaching village. Immediate response required."
+  }
+
+  Expected: 201 Created, status = "NEW"
+  Save the returned "_id" as <alertId>
+
+  ── CREATE ALERT LINKED TO A COMMUNITY REPORT ────────────────────────────────
+  POST http://localhost:5001/api/conflict-alerts
+  Content-Type: application/json
+
+  {
+    "latitude": -2.7200,
+    "longitude": 38.1500,
+    "severity": "CRITICAL",
+    "description": "Buffalo crop damage — escalated from community report.",
+    "sourceReport": "<reportId>"
+  }
+
+  ── CREATE ALERT LINKED TO AN ANIMAL ─────────────────────────────────────────
+  POST http://localhost:5001/api/conflict-alerts
+  Content-Type: application/json
+
+  {
+    "latitude": -2.6145,
+    "longitude": 37.9023,
+    "severity": "MEDIUM",
+    "description": "Tracked elephant EL-001 entered buffer zone.",
+    "sourceAnimal": "<animalId>",
+    "sourceRiskZone": "<riskZoneId>"
+  }
+
+  ── GET ALL CONFLICT ALERTS ───────────────────────────────────────────────────
+  GET http://localhost:5001/api/conflict-alerts
+
+  ── GET CONFLICT ALERT BY ID ──────────────────────────────────────────────────
+  GET http://localhost:5001/api/conflict-alerts/<alertId>
+
+  ── UPDATE CONFLICT ALERT ────────────────────────────────────────────────────
+  PUT http://localhost:5001/api/conflict-alerts/<alertId>
+  Content-Type: application/json
+
+  {
+    "severity": "CRITICAL",
+    "description": "Situation has escalated. Herd now inside village boundary."
+  }
+
+  ── ACKNOWLEDGE ALERT ────────────────────────────────────────────────────────
+  PATCH http://localhost:5001/api/conflict-alerts/<alertId>/acknowledge
+
+  No body required.
+  Expected: 200 OK, status = "ACKNOWLEDGED", acknowledgedAt set
+
+  ── ASSIGN OFFICER TO ALERT ──────────────────────────────────────────────────
+  PATCH http://localhost:5001/api/conflict-alerts/<alertId>/assign
+  Content-Type: application/json
+
+  {
+    "officerId": "<userId>"
+  }
+
+  NOTE: userId must belong to a user with role RANGER or COMMUNITY_LIAISON_OFFICER
+  Expected: 200 OK, assignedOfficer populated
+
+  ── CLOSE ALERT ──────────────────────────────────────────────────────────────
+  PATCH http://localhost:5001/api/conflict-alerts/<alertId>/close
+
+  No body required.
+  Expected: 200 OK, status = "CLOSED", closedAt set
+
+  ── DELETE CONFLICT ALERT ────────────────────────────────────────────────────
+  DELETE http://localhost:5001/api/conflict-alerts/<alertId>
+
+  ── VALIDATION TESTS ─────────────────────────────────────────────────────────
+
+  Acknowledge a closed alert:
+  PATCH /api/conflict-alerts/<closedAlertId>/acknowledge
+  Expected: 400 Bad Request — "Cannot acknowledge a closed alert"
+
+  Close an already-closed alert:
+  PATCH /api/conflict-alerts/<closedAlertId>/close
+  Expected: 400 Bad Request — "Alert is already closed"
+
+  Assign invalid officer role (e.g. CONSERVATION_RESEARCHER):
+  PATCH /api/conflict-alerts/<alertId>/assign
+  { "officerId": "<researcherUserId>" }
+  Expected: 400 Bad Request
+
+  Invalid severity:
+  POST /api/conflict-alerts
+  { "latitude": -2.5, "longitude": 37.8, "severity": "EXTREME" }
+  Expected: 400 Bad Request
+
+
+================================================================================
+  SECTION 9: RESPONSE ACTION ENDPOINTS
+================================================================================
+
+  Requires an existing alertId that is not CLOSED.
+
+  ── CREATE RESPONSE ACTION ───────────────────────────────────────────────────
+  POST http://localhost:5001/api/response-actions
+  Content-Type: application/json
+
+  {
+    "alertId": "<alertId>",
+    "actionTaken": "Ranger patrol dispatched to intercept elephant herd near northern boundary. Chili ropes deployed as deterrent.",
+    "notes": "Herd was moving northeast. Redirected without injury.",
+    "status": "IN_PROGRESS",
+    "syncStatus": "SYNCED",
+    "performedBy": "<userId>"
+  }
+
+  Expected: 201 Created
+  NOTE: If the alert was NEW or ACKNOWLEDGED, it auto-advances to IN_PROGRESS
+  Save the returned "_id" as <responseActionId>
+
+  ── CREATE A SECOND RESPONSE ACTION ──────────────────────────────────────────
+  POST http://localhost:5001/api/response-actions
+  Content-Type: application/json
+
+  {
+    "alertId": "<alertId>",
+    "actionTaken": "Community notified via village radio. Livestock secured in enclosures.",
+    "notes": "Coordination with community liaison complete.",
+    "status": "COMPLETED",
+    "syncStatus": "SYNCED",
+    "performedBy": "<userId>"
+  }
+
+  ── GET ALL RESPONSE ACTIONS ─────────────────────────────────────────────────
+  GET http://localhost:5001/api/response-actions
+
+  ── FILTER RESPONSE ACTIONS BY ALERT ─────────────────────────────────────────
+  GET http://localhost:5001/api/response-actions?alertId=<alertId>
+
+  ── GET RESPONSE ACTION BY ID ────────────────────────────────────────────────
+  GET http://localhost:5001/api/response-actions/<responseActionId>
+
+  ── UPDATE RESPONSE ACTION ───────────────────────────────────────────────────
+  PUT http://localhost:5001/api/response-actions/<responseActionId>
+  Content-Type: application/json
+
+  {
+    "actionTaken": "Patrol conducted perimeter sweep. No further threats detected.",
+    "notes": "Herd fully dispersed by 14:30.",
+    "syncStatus": "SYNCED"
+  }
+
+  ── UPDATE RESPONSE ACTION STATUS ────────────────────────────────────────────
+  PATCH http://localhost:5001/api/response-actions/<responseActionId>/status
+  Content-Type: application/json
+
+  {
+    "status": "COMPLETED"
+  }
+
+  ── DELETE RESPONSE ACTION ───────────────────────────────────────────────────
+  DELETE http://localhost:5001/api/response-actions/<responseActionId>
+
+  ── VALIDATION TESTS ─────────────────────────────────────────────────────────
+
+  Invalid alertId:
+  POST /api/response-actions
+  { "alertId": "000000000000000000000000", "actionTaken": "test" }
+  Expected: 404 Not Found — "Conflict alert not found"
+
+  Missing actionTaken:
+  POST /api/response-actions
+  { "alertId": "<alertId>" }
+  Expected: 400 Bad Request
+
+  Invalid status value:
+  PATCH /api/response-actions/<id>/status
+  { "status": "DONE" }
+  Expected: 400 Bad Request
+
+
+================================================================================
+  SECTION 10: NOTIFICATION ENDPOINTS
+================================================================================
+
+  Requires alertId and a valid recipient userId.
+
+  ── CREATE NOTIFICATION ──────────────────────────────────────────────────────
+  POST http://localhost:5001/api/notifications
+  Content-Type: application/json
+
+  {
+    "alertId": "<alertId>",
+    "recipient": "<userId>",
+    "message": "ALERT: High severity wildlife conflict detected near Northern Buffer Zone. Please respond immediately."
+  }
+
+  Expected: 201 Created, status = "SENT", sentAt set automatically
+  Save the returned "_id" as <notificationId>
+
+  ── CREATE A SECOND NOTIFICATION ─────────────────────────────────────────────
+  POST http://localhost:5001/api/notifications
+  Content-Type: application/json
+
+  {
+    "alertId": "<alertId>",
+    "recipient": "<userId>",
+    "message": "UPDATE: Elephant herd conflict alert has been acknowledged by Ranger John Ranger. Response team is en route."
+  }
+
+  ── GET ALL NOTIFICATIONS ────────────────────────────────────────────────────
+  GET http://localhost:5001/api/notifications
+
+  ── FILTER NOTIFICATIONS BY ALERT ────────────────────────────────────────────
+  GET http://localhost:5001/api/notifications?alertId=<alertId>
+
+  ── FILTER NOTIFICATIONS BY RECIPIENT ────────────────────────────────────────
+  GET http://localhost:5001/api/notifications?recipient=<userId>
+
+  ── GET NOTIFICATION BY ID ───────────────────────────────────────────────────
+  GET http://localhost:5001/api/notifications/<notificationId>
+
+  ── MARK NOTIFICATION AS READ ────────────────────────────────────────────────
+  PATCH http://localhost:5001/api/notifications/<notificationId>/read
+
+  No body required.
+  Expected: 200 OK, status = "READ"
+
+  Mark already-read notification:
+  PATCH same endpoint again
+  Expected: 400 Bad Request — "Notification is already marked as read"
+
+  ── DELETE NOTIFICATION ──────────────────────────────────────────────────────
+  DELETE http://localhost:5001/api/notifications/<notificationId>
+
+  ── VALIDATION TESTS ─────────────────────────────────────────────────────────
+
+  Non-existent alert:
+  POST /api/notifications
+  { "alertId": "000000000000000000000000", "recipient": "<userId>", "message": "test" }
+  Expected: 404 Not Found
+
+  Non-existent recipient:
+  POST /api/notifications
+  { "alertId": "<alertId>", "recipient": "000000000000000000000000", "message": "test" }
+  Expected: 404 Not Found
+
+
+================================================================================
+  SECTION 11: FULL END-TO-END WORKFLOW (Recommended Test Order)
+================================================================================
+
+  Follow this sequence to test the complete business flow in Postman:
+
+  Step 01 — POST /api/auth/signup            (register RANGER user)
+  Step 02 — POST /api/auth/signup            (register PARK_MANAGER user)
+  Step 03 — POST /api/auth/signin            (sign in as RANGER — session set)
+  Step 04 — POST /api/animals                (create animal EL-001)
+  Step 05 — POST /api/gps-collars            (assign GPS collar to EL-001)
+  Step 06 — POST /api/risk-zones             (create Northern Buffer Zone)
+  Step 07 — GET  /api/risk-zones/check-location?lat=-2.55&lon=37.87
+                                             (verify EL-001 location is inside zone)
+  Step 08 — PATCH /api/gps-collars/:id/location
+                                             (update EL-001 location)
+  Step 09 — POST /api/community-reports      (community sighting report)
+  Step 10 — PATCH /api/community-reports/:id/status  { "status": "UNDER_REVIEW" }
+  Step 11 — POST /api/conflict-alerts        (create HIGH alert linked to report)
+  Step 12 — PATCH /api/conflict-alerts/:id/acknowledge
+  Step 13 — PATCH /api/conflict-alerts/:id/assign   { "officerId": "<rangerId>" }
+  Step 14 — POST /api/response-actions       (ranger records action taken)
+  Step 15 — PATCH /api/response-actions/:id/status  { "status": "COMPLETED" }
+  Step 16 — POST /api/notifications          (notify park manager of resolution)
+  Step 17 — PATCH /api/notifications/:id/read
+  Step 18 — PATCH /api/community-reports/:id/status  { "status": "RESOLVED" }
+  Step 19 — PATCH /api/conflict-alerts/:id/close
+  Step 20 — POST /api/auth/signout
+
+
+================================================================================
+  SECTION 12: COMPLETE API REFERENCE SUMMARY
+================================================================================
+
+  AUTH
+    POST   /api/auth/signup
+    POST   /api/auth/signin
+    POST   /api/auth/signout
+    GET    /api/auth/me
+
+  ANIMALS
+    POST   /api/animals
+    GET    /api/animals
+    GET    /api/animals/:id
+    PUT    /api/animals/:id
+    DELETE /api/animals/:id
+    PATCH  /api/animals/:id/risk-status
+
+  GPS COLLARS
+    POST   /api/gps-collars
+    GET    /api/gps-collars
+    GET    /api/gps-collars/:id
+    PUT    /api/gps-collars/:id
+    DELETE /api/gps-collars/:id
+    PATCH  /api/gps-collars/:id/location
+
+  RISK ZONES
+    POST   /api/risk-zones
+    GET    /api/risk-zones
+    GET    /api/risk-zones/check-location?lat=&lon=
+    GET    /api/risk-zones/:id
+    PUT    /api/risk-zones/:id
+    DELETE /api/risk-zones/:id
+
+  COMMUNITY REPORTS
+    POST   /api/community-reports
+    GET    /api/community-reports
+    GET    /api/community-reports/:id
+    PUT    /api/community-reports/:id
+    DELETE /api/community-reports/:id
+    PATCH  /api/community-reports/:id/status
+
+  CONFLICT ALERTS
+    POST   /api/conflict-alerts
+    GET    /api/conflict-alerts
+    GET    /api/conflict-alerts/:id
+    PUT    /api/conflict-alerts/:id
+    DELETE /api/conflict-alerts/:id
+    PATCH  /api/conflict-alerts/:id/acknowledge
+    PATCH  /api/conflict-alerts/:id/assign
+    PATCH  /api/conflict-alerts/:id/close
+
+  RESPONSE ACTIONS
+    POST   /api/response-actions
+    GET    /api/response-actions
+    GET    /api/response-actions
+    GET    /api/response-actions/:id
+    PUT    /api/response-actions/:id
+    DELETE /api/response-actions/:id
+    PATCH  /api/response-actions/:id/status
+
+  NOTIFICATIONS
+    POST   /api/notifications
+    GET    /api/notifications
+    GET    /api/notifications/:id
+    DELETE /api/notifications/:id
+    PATCH  /api/notifications/:id/read
+
+
+================================================================================
+  SECTION 13: HTTP STATUS CODE REFERENCE
+================================================================================
+
+  200  — Successful GET / UPDATE / DELETE
+  201  — Successful CREATE
+  400  — Validation error / bad request / business rule violation
+  401  — Not authenticated (session missing)
+  403  — Access denied (wrong role)
+  404  — Resource not found
+  409  — Duplicate / conflict (duplicate identifier, collar already assigned, etc.)
+  500  — Internal server error
+
+
+================================================================================
+  END OF DOCUMENT
+================================================================================

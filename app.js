@@ -4,7 +4,16 @@ import dotenv from "dotenv";
 import session from "express-session";
 
 import connectDB from "./config/DB.js";
-import authRoutes from "./routes/authRoutes.js";
+import authRoutes from "./Routes/authRoutes.js";
+
+// Wildlife Conflict Alerts & Response module routes
+import animalRoutes from "./Routes/animalRoutes.js";
+import gpsCollarRoutes from "./Routes/gpsCollarRoutes.js";
+import riskZoneRoutes from "./Routes/riskZoneRoutes.js";
+import communityReportRoutes from "./Routes/communityReportRoutes.js";
+import wildlifeConflictAlertRoutes from "./Routes/wildlifeConflictAlertRoutes.js";
+import responseActionRoutes from "./Routes/responseActionRoutes.js";
+import notificationRoutes from "./Routes/notificationRoutes.js";
 
 dotenv.config();
 
@@ -26,7 +35,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.JWT_SECRET,
 
     resave: false,
 
@@ -49,6 +58,15 @@ connectDB();
  
 
 app.use("/api/auth", authRoutes);
+
+// Wildlife Conflict Alerts & Response module
+app.use("/api/animals", animalRoutes);
+app.use("/api/gps-collars", gpsCollarRoutes);
+app.use("/api/risk-zones", riskZoneRoutes);
+app.use("/api/community-reports", communityReportRoutes);
+app.use("/api/conflict-alerts", wildlifeConflictAlertRoutes);
+app.use("/api/response-actions", responseActionRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 
  
