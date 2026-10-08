@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import User from "../Models/User.js";
+import User from "../models/User.js";
 
 const allowedRoles = [
   "RANGER",
