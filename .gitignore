@@ -1,1 +1,53 @@
-/node_modules
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# Environment & Secret files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Testing & Coverage
+coverage/
+.nyc_output/
+
+# Build & Output
+dist/
+build/
+out/
+
+# IDEs & Code Editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Cache directories
+.cache/
+.eslintcache
+
+# Other
+WILDLIFE_MODULE_DOCS.txt
