@@ -5,7 +5,12 @@ const notificationSchema = new mongoose.Schema(
     recipientRole: {
       type: String,
       required: [true, "Recipient role is required"],
-      enum: ["Park Manager", "Conservation Researcher", "Community Liaison Officer"],
+      enum: ["PARK_MANAGER", "CONSERVATION_RESEARCHER", "COMMUNITY_LIAISON_OFFICER", "RANGER"],
+    },
+    recipient: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: false, // Optional: if targeting a specific user like the reporting Ranger
     },
     type: {
       type: String,

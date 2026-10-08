@@ -7,6 +7,7 @@ import {
   deleteEvidence,
   getMyReports,
   getIncidentTypes,
+  getAllIncidentsMapData
 } from "../controllers/incidentController.js";
 import auth from "../middleware/auth.js";
 import upload from "../middleware/upload.js";
@@ -18,6 +19,7 @@ router.get("/types", getIncidentTypes);
 
 // Protected routes (Ranger access)
 router.use(auth);
+router.get("/map", getAllIncidentsMapData); // Endpoint for the map view
 router.post("/", upload.array("evidence", 5), createIncident);
 router.post("/sync", syncIncidents); // Offline sync endpoint
 router.get("/my-reports", getMyReports);
