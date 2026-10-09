@@ -23,6 +23,9 @@ import conflictNotificationRoutes from "./Routes/conflictNotificationRoutes.js";
 // Ranger patrol module
 import patrolRoutes, { assignmentsRouter, routesRouter } from "./Routes/patrolRoutes.js";
 
+// Analytics and reports
+import analyticsRoutes from "./Routes/analyticsRoutes.js";
+
 // Other module routes
 import incidentRoutes from "./Routes/incidentRoutes.js";
 import notificationRoutes from "./Routes/notificationRoutes.js";
@@ -87,6 +90,9 @@ app.use("/api/conflict-notifications", conflictNotificationRoutes);
 app.use("/api/patrol-routes", routesRouter);
 app.use("/api/patrol-assignments", assignmentsRouter);
 app.use("/api/patrols", patrolRoutes);
+
+// Analytics and reports
+app.use("/api/analytics", analyticsRoutes);
 
 // Other modules
 app.use("/api/incidents", incidentRoutes);
