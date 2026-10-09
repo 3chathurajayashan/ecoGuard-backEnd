@@ -257,6 +257,11 @@ const main = async () => {
   await check("closing again is refused", async () => {
     assert.equal((await call(ranger.token, "PATCH", `/conflict-alerts/${alertId}/close`, {})).status, 400);
   });
+  await check("photo upload needs a file and is for responders only", async () => {
+    const empty = await call(ranger.token, "POST", "/response-actions/photos", {});
+    assert.equal(empty.status, 400);
+    assert.equal((await call(villager.token, "POST", "/response-actions/photos", {})).status, 403);
+  });
   await check("response status can be completed", async () => {
     const r = await call(ranger.token, "PATCH", `/response-actions/${responseId}/status`, { status: "COMPLETED" });
     assert.equal(r.status, 200);

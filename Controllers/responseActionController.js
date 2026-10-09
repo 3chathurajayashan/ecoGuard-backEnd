@@ -3,6 +3,20 @@ import ResponseAction, { RESPONSE_STATUS, SYNC_STATUS } from "../Models/Response
 import WildlifeConflictAlert from "../Models/WildlifeConflictAlert.js";
 
 // ───────────────────────────────────────────────
+// POST /api/response-actions/photos  (multipart, field "photos")
+// Uploads evidence photos and returns their URLs, ready to attach to a response.
+// ───────────────────────────────────────────────
+export const uploadResponsePhotos = async (req, res) => {
+  if (!req.files || req.files.length === 0) {
+    return res.status(400).json({ success: false, message: "Attach at least one photo" });
+  }
+  return res.status(201).json({
+    success: true,
+    urls: req.files.map((file) => file.path),
+  });
+};
+
+// ───────────────────────────────────────────────
 // POST /api/response-actions
 // ───────────────────────────────────────────────
 export const createResponseAction = async (req, res) => {
