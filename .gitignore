@@ -45,3 +45,6 @@ node_modules/
 # Local developer scripts
 generateToken.js
 generateManagerToken.js
+
+# Other
+WILDLIFE_MODULE_DOCS.txt
