@@ -20,6 +20,9 @@ import wildlifeConflictAlertRoutes from "./Routes/wildlifeConflictAlertRoutes.js
 import responseActionRoutes from "./Routes/responseActionRoutes.js";
 import conflictNotificationRoutes from "./Routes/conflictNotificationRoutes.js";
 
+// Ranger patrol module
+import patrolRoutes, { assignmentsRouter, routesRouter } from "./Routes/patrolRoutes.js";
+
 // Other module routes
 import incidentRoutes from "./Routes/incidentRoutes.js";
 import notificationRoutes from "./Routes/notificationRoutes.js";
@@ -79,6 +82,11 @@ app.use("/api/community-reports", communityReportRoutes);
 app.use("/api/conflict-alerts", wildlifeConflictAlertRoutes);
 app.use("/api/response-actions", responseActionRoutes);
 app.use("/api/conflict-notifications", conflictNotificationRoutes);
+
+// Ranger patrols
+app.use("/api/patrol-routes", routesRouter);
+app.use("/api/patrol-assignments", assignmentsRouter);
+app.use("/api/patrols", patrolRoutes);
 
 // Other modules
 app.use("/api/incidents", incidentRoutes);
