@@ -3,13 +3,17 @@ import CommunityReport, {
   COMMUNITY_REPORT_TYPE,
   COMMUNITY_REPORT_STATUS,
 } from "../Models/CommunityReport.js";
+import { notifyUsers, reviewCommunityReport } from "../services/conflictService.js";
+import User from "../Models/User.js";
 
 // ───────────────────────────────────────────────
 // POST /api/community-reports
 // ───────────────────────────────────────────────
 export const createCommunityReport = async (req, res) => {
   try {
-    const { reportType, latitude, longitude, description, reportedBy } = req.body;
+    const { reportType, latitude, longitude, description, locationName } = req.body;
+    // The signed-in user is always the reporter
+    const reportedBy = req.user.id;
 
     if (!reportType || latitude == null || longitude == null || !description) {
       return res.status(400).json({
@@ -51,7 +55,17 @@ export const createCommunityReport = async (req, res) => {
       latitude,
       longitude,
       description,
+      locationName: locationName || "",
       reportedBy: reportedBy || null,
+    });
+
+    // Liaison officers must verify it before any alert goes out
+    const liaisons = await User.find({ role: "COMMUNITY_LIAISON_OFFICER", isActive: true });
+    await notifyUsers(liaisons, {
+      title: "Report needs verification",
+      message: `${req.user.firstName ?? "A villager"} reported ${reportType.toLowerCase().replace(/_/g, " ")}${locationName ? ` near ${locationName}` : ""}.`,
+      reportId: report._id,
+      type: "Community Report",
     });
 
     return res.status(201).json({
@@ -73,7 +87,14 @@ export const createCommunityReport = async (req, res) => {
 // ───────────────────────────────────────────────
 export const getCommunityReports = async (req, res) => {
   try {
-    const reports = await CommunityReport.find()
+    // Villagers only see their own reports; staff see all (optionally ?status=PENDING,UNDER_REVIEW)
+    const filter = {};
+    if (req.user.role === "VILLAGER") filter.reportedBy = req.user.id;
+    if (req.query.status) {
+      filter.status = { $in: String(req.query.status).split(",").map((s) => s.trim().toUpperCase()) };
+    }
+
+    const reports = await CommunityReport.find(filter)
       .populate("reportedBy", "firstName lastName email role")
       .sort({ reportedAt: -1 });
 
@@ -231,12 +252,17 @@ export const updateCommunityReportStatus = async (req, res) => {
       });
     }
 
-    await report.updateStatus(status);
+    // Verifying raises a conflict alert, dismissing archives the report; both tell the reporter
+    const { alert } = await reviewCommunityReport(report, status, req.user);
 
     return res.status(200).json({
       success: true,
-      message: "Report status updated successfully",
+      message:
+        status === "VERIFIED"
+          ? "Report verified and a conflict alert was raised"
+          : "Report status updated successfully",
       report,
+      alert,
     });
   } catch (error) {
     console.error("UPDATE REPORT STATUS ERROR:", error);

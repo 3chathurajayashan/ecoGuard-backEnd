@@ -35,9 +35,18 @@ class NotificationService {
   }
 
   async getNotificationsByRole(role, userId) {
+    // A notification addressed to a user is private to them; one with no recipient is a
+    // broadcast to everyone holding that role.
     return await Notification.find({
-      $or: [{ recipientRole: role }, { recipient: userId }]
+      $or: [{ recipient: userId }, { recipient: null, recipientRole: role }]
     }).sort({ createdAt: -1 });
+  }
+
+  async markAllAsRead(role, userId) {
+    return await Notification.updateMany(
+      { $or: [{ recipient: userId }, { recipient: null, recipientRole: role }], isRead: false },
+      { isRead: true }
+    );
   }
 
   async markAsRead(notificationId) {

@@ -7,15 +7,16 @@ import {
   updateResponseActionStatus,
   deleteResponseAction,
 } from "../Controllers/responseActionController.js";
-import { requireAuth } from "../middleware/authMiddleware.js";
+import { allowRoles } from "../middleware/authMiddleware.js";
+import { LIAISON, MANAGER, RANGER, RESPONDERS, STAFF } from "../middleware/roles.js";
 
 const router = express.Router();
 
-router.post("/", requireAuth, createResponseAction);
-router.get("/", requireAuth, getResponseActions);
-router.get("/:id", requireAuth, getResponseActionById);
-router.put("/:id", requireAuth, updateResponseAction);
-router.patch("/:id/status", requireAuth, updateResponseActionStatus);
-router.delete("/:id", requireAuth, deleteResponseAction);
+router.post("/", allowRoles(...RESPONDERS), createResponseAction);
+router.get("/", allowRoles(...STAFF), getResponseActions);
+router.get("/:id", allowRoles(...STAFF), getResponseActionById);
+router.put("/:id", allowRoles(RANGER, LIAISON, MANAGER), updateResponseAction);
+router.patch("/:id/status", allowRoles(RANGER, LIAISON, MANAGER), updateResponseActionStatus);
+router.delete("/:id", allowRoles(MANAGER), deleteResponseAction);
 
 export default router;

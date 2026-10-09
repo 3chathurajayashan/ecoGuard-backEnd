@@ -12,6 +12,7 @@ const COMMUNITY_REPORT_TYPE = [
 const COMMUNITY_REPORT_STATUS = [
   "PENDING",
   "UNDER_REVIEW",
+  "VERIFIED",
   "RESOLVED",
   "DISMISSED",
 ];
@@ -66,6 +67,31 @@ const communityReportSchema = new mongoose.Schema(
     reportedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      default: null,
+    },
+
+    locationName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    // Set when a liaison officer reviews the report
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    reviewedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // The alert raised once the report was verified
+    alertId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "WildlifeConflictAlert",
       default: null,
     },
   },

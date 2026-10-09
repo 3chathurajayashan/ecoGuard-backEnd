@@ -42,6 +42,21 @@ const responseActionSchema = new mongoose.Schema(
       default: "",
     },
 
+    // What the ranger saw on site, and the evidence photos they attached
+    situationAssessment: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    photos: [{ type: String }],
+
+    fieldLocation: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     syncStatus: {
       type: String,
       enum: SYNC_STATUS,

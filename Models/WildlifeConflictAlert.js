@@ -2,7 +2,10 @@ import mongoose from "mongoose";
 import { v4 as uuidv4 } from "uuid";
 
 const SEVERITY_LEVEL = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
-const ALERT_STATUS = ["NEW", "ACKNOWLEDGED", "IN_PROGRESS", "CLOSED"];
+// CLOSED is kept for older records; new closures use RESOLVED, FALSE_ALERT or CANCELLED.
+const ALERT_STATUS = ["NEW", "ACKNOWLEDGED", "IN_PROGRESS", "RESOLVED", "FALSE_ALERT", "CANCELLED", "CLOSED"];
+const CLOSED_STATUSES = ["RESOLVED", "FALSE_ALERT", "CANCELLED", "CLOSED"];
+const DETECTED_BY = ["GPS_COLLAR", "COMMUNITY_REPORT", "MANUAL"];
 
 const wildlifeConflictAlertSchema = new mongoose.Schema(
   {
@@ -73,6 +76,33 @@ const wildlifeConflictAlertSchema = new mongoose.Schema(
       default: null,
     },
 
+    // How the alert was raised, and a readable place name for the screens
+    detectedBy: {
+      type: String,
+      enum: DETECTED_BY,
+      default: "MANUAL",
+    },
+
+    locationName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    // Officers who could not be reached; used to route the alert to someone else
+    unreachableOfficers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
+    acknowledgedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
     acknowledgedAt: {
       type: Date,
       default: null,
@@ -81,6 +111,14 @@ const wildlifeConflictAlertSchema = new mongoose.Schema(
     closedAt: {
       type: Date,
       default: null,
+    },
+
+    // Filled in by the "Close alert" form
+    closure: {
+      finalStatus: { type: String, default: null },
+      resolvedAt: { type: Date, default: null },
+      remarks: { type: String, trim: true, default: "" },
+      closedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     },
   },
   {
@@ -95,23 +133,35 @@ wildlifeConflictAlertSchema.methods.assignOfficer = async function (officerId) {
 };
 
 // Instance method: acknowledge
-wildlifeConflictAlertSchema.methods.acknowledge = async function () {
-  if (this.status === "CLOSED") {
+wildlifeConflictAlertSchema.methods.acknowledge = async function (userId = null) {
+  if (CLOSED_STATUSES.includes(this.status)) {
     throw new Error("Cannot acknowledge a closed alert");
   }
   this.status = "ACKNOWLEDGED";
   this.acknowledgedAt = new Date();
+  if (userId) this.acknowledgedBy = userId;
   return this.save();
 };
 
 // Instance method: close
-wildlifeConflictAlertSchema.methods.close = async function () {
-  this.status = "CLOSED";
+wildlifeConflictAlertSchema.methods.close = async function ({
+  finalStatus = "RESOLVED",
+  resolvedAt = null,
+  remarks = "",
+  closedBy = null,
+} = {}) {
+  this.status = finalStatus;
   this.closedAt = new Date();
+  this.closure = {
+    finalStatus,
+    resolvedAt: resolvedAt || this.closedAt,
+    remarks,
+    closedBy,
+  };
   return this.save();
 };
 
-export { SEVERITY_LEVEL, ALERT_STATUS };
+export { SEVERITY_LEVEL, ALERT_STATUS, CLOSED_STATUSES, DETECTED_BY };
 const WildlifeConflictAlert = mongoose.model(
   "WildlifeConflictAlert",
   wildlifeConflictAlertSchema

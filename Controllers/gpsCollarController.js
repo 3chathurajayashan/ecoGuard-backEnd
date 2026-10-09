@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import GPSCollar, { COLLAR_STATUS } from "../Models/GPSCollar.js";
 import Animal from "../Models/Animal.js";
+import { evaluateCollarLocation } from "../services/conflictService.js";
 
 // ───────────────────────────────────────────────
 // POST /api/gps-collars
@@ -178,10 +179,19 @@ export const updateGPSLocation = async (req, res) => {
 
     await collar.recordLocation(latitude, longitude);
 
+    // Entering a risk zone raises a conflict alert and notifies the responders;
+    // a position outside every zone is just tracking data.
+    const { insideZones, alert, created } = await evaluateCollarLocation(collar, latitude, longitude);
+
     return res.status(200).json({
       success: true,
-      message: "GPS location updated successfully",
+      message: created
+        ? "GPS location updated. A conflict alert was raised."
+        : "GPS location updated successfully",
       collar,
+      insideRiskZone: insideZones.length > 0,
+      alertCreated: created,
+      alert,
     });
   } catch (error) {
     console.error("UPDATE GPS LOCATION ERROR:", error);

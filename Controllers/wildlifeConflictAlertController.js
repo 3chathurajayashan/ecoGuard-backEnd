@@ -2,8 +2,22 @@ import mongoose from "mongoose";
 import WildlifeConflictAlert, {
   SEVERITY_LEVEL,
   ALERT_STATUS,
+  CLOSED_STATUSES,
+  DETECTED_BY,
 } from "../Models/WildlifeConflictAlert.js";
+import ResponseAction from "../Models/ResponseAction.js";
 import User from "../Models/User.js";
+import { notifyClosed, raiseAlert, rerouteAlert } from "../services/conflictService.js";
+
+const ALERT_POPULATE = [
+  { path: "assignedOfficer", select: "firstName lastName email role" },
+  { path: "acknowledgedBy", select: "firstName lastName role" },
+  { path: "sourceReport", select: "reportType description status" },
+  { path: "sourceAnimal", select: "species identifier riskStatus" },
+  { path: "sourceRiskZone", select: "name zoneType description" },
+];
+
+const CLOSE_STATUSES = ["RESOLVED", "FALSE_ALERT", "CANCELLED"];
 
 // ───────────────────────────────────────────────
 // POST /api/conflict-alerts
@@ -18,7 +32,16 @@ export const createConflictAlert = async (req, res) => {
       sourceReport,
       sourceAnimal,
       sourceRiskZone,
+      detectedBy,
+      locationName,
     } = req.body;
+
+    if (detectedBy && !DETECTED_BY.includes(detectedBy)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid detectedBy. Must be one of: ${DETECTED_BY.join(", ")}`,
+      });
+    }
 
     if (latitude == null || longitude == null || !severity) {
       return res.status(400).json({
@@ -58,11 +81,13 @@ export const createConflictAlert = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid sourceRiskZone ID" });
     }
 
-    const alert = await WildlifeConflictAlert.create({
+    const alert = await raiseAlert({
       latitude,
       longitude,
       severity,
       description,
+      detectedBy: detectedBy || "MANUAL",
+      locationName: locationName || "",
       sourceReport: sourceReport || null,
       sourceAnimal: sourceAnimal || null,
       sourceRiskZone: sourceRiskZone || null,
@@ -87,17 +112,33 @@ export const createConflictAlert = async (req, res) => {
 // ───────────────────────────────────────────────
 export const getConflictAlerts = async (req, res) => {
   try {
-    const alerts = await WildlifeConflictAlert.find()
-      .populate("assignedOfficer", "firstName lastName email role")
-      .populate("sourceReport", "reportType description status")
-      .populate("sourceAnimal", "species identifier riskStatus")
-      .populate("sourceRiskZone", "name zoneType")
-      .sort({ createdAt: -1 });
+    // Optional filters: ?status=NEW&mine=true&active=true
+    const filter = {};
+    if (req.query.status) {
+      const wanted = String(req.query.status).split(",").map((s) => s.trim().toUpperCase());
+      filter.status = { $in: wanted };
+    }
+    if (req.query.active === "true") filter.status = { $nin: CLOSED_STATUSES };
+    if (req.query.mine === "true") filter.assignedOfficer = req.user.id;
+
+    const alerts = await WildlifeConflictAlert.find(filter)
+      .populate(ALERT_POPULATE)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Attach each alert's most recent response so the screens need a single request
+    const responses = await ResponseAction.find({ alertId: { $in: alerts.map((a) => a._id) } })
+      .populate("performedBy", "firstName lastName role")
+      .sort({ responseTime: -1 })
+      .lean();
+    const latest = new Map();
+    for (const r of responses) if (!latest.has(String(r.alertId))) latest.set(String(r.alertId), r);
+    const withResponse = alerts.map((a) => ({ ...a, latestResponse: latest.get(String(a._id)) ?? null }));
 
     return res.status(200).json({
       success: true,
-      count: alerts.length,
-      alerts,
+      count: withResponse.length,
+      alerts: withResponse,
     });
   } catch (error) {
     console.error("GET CONFLICT ALERTS ERROR:", error);
@@ -122,11 +163,7 @@ export const getConflictAlertById = async (req, res) => {
       });
     }
 
-    const alert = await WildlifeConflictAlert.findById(id)
-      .populate("assignedOfficer", "firstName lastName email role")
-      .populate("sourceReport", "reportType description status")
-      .populate("sourceAnimal", "species identifier riskStatus")
-      .populate("sourceRiskZone", "name zoneType");
+    const alert = await WildlifeConflictAlert.findById(id).populate(ALERT_POPULATE).lean();
 
     if (!alert) {
       return res.status(404).json({
@@ -135,9 +172,14 @@ export const getConflictAlertById = async (req, res) => {
       });
     }
 
+    const responses = await ResponseAction.find({ alertId: alert._id })
+      .populate("performedBy", "firstName lastName role")
+      .sort({ responseTime: -1 })
+      .lean();
+
     return res.status(200).json({
       success: true,
-      alert,
+      alert: { ...alert, latestResponse: responses[0] ?? null, responses },
     });
   } catch (error) {
     console.error("GET CONFLICT ALERT BY ID ERROR:", error);
@@ -234,21 +276,23 @@ export const acknowledgeConflictAlert = async (req, res) => {
       });
     }
 
-    if (alert.status === "CLOSED") {
+    if (CLOSED_STATUSES.includes(alert.status)) {
       return res.status(400).json({
         success: false,
         message: "Cannot acknowledge a closed alert",
       });
     }
 
-    if (alert.status === "ACKNOWLEDGED") {
+    if (alert.status !== "NEW") {
       return res.status(400).json({
         success: false,
         message: "Alert is already acknowledged",
       });
     }
 
-    await alert.acknowledge();
+    // Whoever acknowledges becomes the responder (a secondary officer may accept a re-routed alert)
+    alert.assignedOfficer = req.user.id;
+    await alert.acknowledge(req.user.id);
 
     return res.status(200).json({
       success: true,
@@ -317,7 +361,7 @@ export const assignOfficerToAlert = async (req, res) => {
       });
     }
 
-    if (alert.status === "CLOSED") {
+    if (CLOSED_STATUSES.includes(alert.status)) {
       return res.status(400).json({
         success: false,
         message: "Cannot assign officer to a closed alert",
@@ -362,14 +406,31 @@ export const closeConflictAlert = async (req, res) => {
       });
     }
 
-    if (alert.status === "CLOSED") {
+    if (CLOSED_STATUSES.includes(alert.status)) {
       return res.status(400).json({
         success: false,
         message: "Alert is already closed",
       });
     }
 
-    await alert.close();
+    // Closing form: final status, resolution time and remarks (all optional for older clients)
+    const { finalStatus = "RESOLVED", resolvedAt, remarks = "" } = req.body || {};
+    if (!CLOSE_STATUSES.includes(finalStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid finalStatus. Must be one of: ${CLOSE_STATUSES.join(", ")}`,
+      });
+    }
+    let resolvedDate = null;
+    if (resolvedAt) {
+      resolvedDate = new Date(resolvedAt);
+      if (Number.isNaN(resolvedDate.getTime())) {
+        return res.status(400).json({ success: false, message: "resolvedAt must be a valid date" });
+      }
+    }
+
+    await alert.close({ finalStatus, resolvedAt: resolvedDate, remarks, closedBy: req.user.id });
+    await notifyClosed(alert, req.user.id);
 
     return res.status(200).json({
       success: true,
@@ -382,6 +443,43 @@ export const closeConflictAlert = async (req, res) => {
       success: false,
       message: "Failed to close alert",
     });
+  }
+};
+
+// ───────────────────────────────────────────────
+// PATCH /api/conflict-alerts/:id/reroute
+// The primary officer cannot be reached: pass the alert to the next ranger.
+// ───────────────────────────────────────────────
+export const rerouteConflictAlert = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid alert ID" });
+    }
+
+    const alert = await WildlifeConflictAlert.findById(id);
+    if (!alert) {
+      return res.status(404).json({ success: false, message: "Conflict alert not found" });
+    }
+    if (alert.status !== "NEW") {
+      return res.status(400).json({
+        success: false,
+        message: "Only an alert nobody has acknowledged yet can be re-routed",
+      });
+    }
+
+    const { next } = await rerouteAlert(alert, req.user);
+    await alert.populate(ALERT_POPULATE);
+
+    return res.status(200).json({
+      success: true,
+      message: next ? "Alert re-routed" : "No other officer is available",
+      alert,
+    });
+  } catch (error) {
+    console.error("REROUTE ALERT ERROR:", error);
+    return res.status(500).json({ success: false, message: "Failed to re-route alert" });
   }
 };
 

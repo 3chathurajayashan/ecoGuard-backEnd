@@ -6,14 +6,15 @@ import {
   markConflictNotificationAsRead,
   deleteConflictNotification,
 } from "../Controllers/conflictNotificationController.js";
-import { requireAuth } from "../middleware/authMiddleware.js";
+import { allowRoles } from "../middleware/authMiddleware.js";
+import { LIAISON, MANAGER, STAFF } from "../middleware/roles.js";
 
 const router = express.Router();
 
-router.post("/", requireAuth, createConflictNotification);
-router.get("/", requireAuth, getConflictNotifications);
-router.get("/:id", requireAuth, getConflictNotificationById);
-router.patch("/:id/read", requireAuth, markConflictNotificationAsRead);
-router.delete("/:id", requireAuth, deleteConflictNotification);
+router.post("/", allowRoles(LIAISON, MANAGER), createConflictNotification);
+router.get("/", allowRoles(...STAFF), getConflictNotifications);
+router.get("/:id", allowRoles(...STAFF), getConflictNotificationById);
+router.patch("/:id/read", allowRoles(...STAFF), markConflictNotificationAsRead);
+router.delete("/:id", allowRoles(MANAGER), deleteConflictNotification);
 
 export default router;

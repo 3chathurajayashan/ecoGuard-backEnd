@@ -5,7 +5,13 @@ const notificationSchema = new mongoose.Schema(
     recipientRole: {
       type: String,
       required: [true, "Recipient role is required"],
-      enum: ["PARK_MANAGER", "CONSERVATION_RESEARCHER", "COMMUNITY_LIAISON_OFFICER", "RANGER"],
+      enum: [
+        "PARK_MANAGER",
+        "CONSERVATION_RESEARCHER",
+        "COMMUNITY_LIAISON_OFFICER",
+        "RANGER",
+        "VILLAGER",
+      ],
     },
     recipient: {
       type: mongoose.Schema.Types.ObjectId,
@@ -15,7 +21,14 @@ const notificationSchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ["Incident Report", "Sync Complete", "Incident Update"],
+      enum: [
+        "Incident Report",
+        "Sync Complete",
+        "Incident Update",
+        "Conflict Alert",
+        "Community Report",
+        "Patrol",
+      ],
       default: "Incident Report",
     },
     title: {
@@ -26,10 +39,21 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // Exactly one of these links the notification to what it is about
     incidentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Incident",
-      required: true,
+      required: false,
+    },
+    alertId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "WildlifeConflictAlert",
+      required: false,
+    },
+    reportId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "CommunityReport",
+      required: false,
     },
     isRead: {
       type: Boolean,

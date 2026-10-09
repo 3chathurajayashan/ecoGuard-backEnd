@@ -7,15 +7,18 @@ import {
   updateCommunityReportStatus,
   deleteCommunityReport,
 } from "../Controllers/communityReportController.js";
-import { requireAuth } from "../middleware/authMiddleware.js";
+import { allowRoles } from "../middleware/authMiddleware.js";
+import { EVERYONE, LIAISON, MANAGER } from "../middleware/roles.js";
 
 const router = express.Router();
 
-router.post("/", requireAuth, createCommunityReport);
-router.get("/", requireAuth, getCommunityReports);
-router.get("/:id", requireAuth, getCommunityReportById);
-router.put("/:id", requireAuth, updateCommunityReport);
-router.patch("/:id/status", requireAuth, updateCommunityReportStatus);
-router.delete("/:id", requireAuth, deleteCommunityReport);
+// Anyone with an account can report a sighting; villagers only ever see their own reports.
+router.post("/", allowRoles(...EVERYONE), createCommunityReport);
+router.get("/", allowRoles(...EVERYONE), getCommunityReports);
+router.get("/:id", allowRoles(...EVERYONE), getCommunityReportById);
+router.put("/:id", allowRoles(LIAISON, MANAGER), updateCommunityReport);
+// Verifying or dismissing a report is the liaison officer's job
+router.patch("/:id/status", allowRoles(LIAISON, MANAGER), updateCommunityReportStatus);
+router.delete("/:id", allowRoles(MANAGER), deleteCommunityReport);
 
 export default router;

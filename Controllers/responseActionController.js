@@ -7,7 +7,9 @@ import WildlifeConflictAlert from "../Models/WildlifeConflictAlert.js";
 // ───────────────────────────────────────────────
 export const createResponseAction = async (req, res) => {
   try {
-    const { alertId, actionTaken, notes, status, syncStatus, performedBy } = req.body;
+    const { alertId, actionTaken, notes, status, syncStatus, situationAssessment, photos, fieldLocation } = req.body;
+    // The signed-in officer is always the one who performed the action
+    const performedBy = req.user.id;
 
     if (!alertId || !actionTaken) {
       return res.status(400).json({
@@ -56,6 +58,9 @@ export const createResponseAction = async (req, res) => {
       alertId,
       actionTaken,
       notes,
+      situationAssessment,
+      photos: Array.isArray(photos) ? photos : [],
+      fieldLocation,
       status,
       syncStatus,
       performedBy: performedBy || null,

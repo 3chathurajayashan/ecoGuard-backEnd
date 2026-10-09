@@ -7,15 +7,16 @@ import {
   deleteAnimal,
   updateAnimalRiskStatus,
 } from "../Controllers/animalController.js";
-import { requireAuth } from "../middleware/authMiddleware.js";
+import { allowRoles } from "../middleware/authMiddleware.js";
+import { MANAGER, STAFF } from "../middleware/roles.js";
 
 const router = express.Router();
 
-router.post("/", requireAuth, createAnimal);
-router.get("/", requireAuth, getAnimals);
-router.get("/:id", requireAuth, getAnimalById);
-router.put("/:id", requireAuth, updateAnimal);
-router.delete("/:id", requireAuth, deleteAnimal);
-router.patch("/:id/risk-status", requireAuth, updateAnimalRiskStatus);
+router.post("/", allowRoles(MANAGER), createAnimal);
+router.get("/", allowRoles(...STAFF), getAnimals);
+router.get("/:id", allowRoles(...STAFF), getAnimalById);
+router.put("/:id", allowRoles(MANAGER), updateAnimal);
+router.delete("/:id", allowRoles(MANAGER), deleteAnimal);
+router.patch("/:id/risk-status", allowRoles(MANAGER), updateAnimalRiskStatus);
 
 export default router;
