@@ -51,6 +51,7 @@ const userSchema = new mongoose.Schema(
         "COMMUNITY_LIAISON_OFFICER",
         "PARK_MANAGER",
         "CONSERVATION_RESEARCHER",
+        "VILLAGER",
       ],
       required: true,
     },

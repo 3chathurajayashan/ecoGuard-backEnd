@@ -1,12 +1,24 @@
 import bcrypt from "bcryptjs";
-import User from "../models/User.js";
+import User from "../Models/User.js";
+import { signToken } from "../middleware/auth.js";
 
 const allowedRoles = [
   "RANGER",
   "COMMUNITY_LIAISON_OFFICER",
   "PARK_MANAGER",
   "CONSERVATION_RESEARCHER",
+  "VILLAGER",
 ];
+
+const publicUser = (user) => ({
+  id: user._id,
+  firstName: user.firstName,
+  lastName: user.lastName,
+  email: user.email,
+  phoneNumber: user.phoneNumber,
+  role: user.role,
+  profilePicture: user.profilePicture,
+});
 
 export const signUp = async (req, res) => {
   try {
@@ -142,15 +154,8 @@ export const signIn = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Login successful",
-      user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        phoneNumber: user.phoneNumber,
-        role: user.role,
-        profilePicture: user.profilePicture,
-      },
+      token: signToken(user),
+      user: publicUser(user),
     });
   } catch (error) {
     console.error("SIGN IN ERROR:", error);
@@ -180,16 +185,38 @@ export const signOut = (req, res) => {
   });
 };
 
+export const updateProfile = async (req, res) => {
+  try {
+    const { firstName, lastName, phoneNumber } = req.body;
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    if (firstName) user.firstName = firstName;
+    if (lastName) user.lastName = lastName;
+    if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
+    await user.save();
+    return res.status(200).json({ success: true, message: "Profile updated", user: publicUser(user) });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to update profile" });
+  }
+};
+
+/** GET /api/users?role=RANGER : staff lookups (e.g. a manager choosing a ranger for a patrol). */
+export const listUsers = async (req, res) => {
+  try {
+    const filter = { isActive: true };
+    if (req.query.role) filter.role = String(req.query.role).toUpperCase();
+    const users = await User.find(filter).select("-password").sort({ firstName: 1 });
+    return res.status(200).json({ success: true, count: users.length, users });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to list users" });
+  }
+};
+
 export const getCurrentUser = async (req, res) => {
   try {
-    if (!req.session?.user) {
-      return res.status(401).json({
-        success: false,
-        message: "Not authenticated",
-      });
-    }
-
-    const user = await User.findById(req.session.user.id)
+    const user = await User.findById(req.user.id)
       .select("-password");
 
     if (!user) {

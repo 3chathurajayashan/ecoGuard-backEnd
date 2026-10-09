@@ -1,13 +1,11 @@
-export const requireAuth = (req, res, next) => {
-  req.user = { id: '64d2b2f8e4b0123456789abc', role: 'ranger' };
-  req.session = { user: req.user };
-  next();
-};
+import auth, { authorize } from "./auth.js";
 
-export const allowRoles = (...roles) => {
-  return (req, res, next) => {
-    req.user = { id: '64d2b2f8e4b0123456789abc', role: 'ranger' };
-    req.session = { user: req.user };
-    next();
-  };
-};
+// Used by the wildlife-conflict routes. These used to be stubs that always injected a
+// fixed ranger; they now enforce real authentication and roles.
+export const requireAuth = auth;
+
+/** allowRoles("RANGER", ...) authenticates the request, then checks the role. */
+export const allowRoles =
+  (...roles) =>
+  (req, res, next) =>
+    auth(req, res, (err) => (err ? next(err) : authorize(...roles)(req, res, next)));
