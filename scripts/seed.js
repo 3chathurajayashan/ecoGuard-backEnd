@@ -26,7 +26,7 @@ const hoursAgo = (h) => new Date(Date.now() - h * 3600_000);
 const daysAgo = (d) => new Date(Date.now() - d * 86400_000);
 
 /** A small square polygon (GeoJSON ring, [lon, lat]) around a centre. */
-const square = (lat, lon, half = 0.006) => [
+const square = (lat, lon, half = 0.014) => [
   [
     [lon - half, lat - half],
     [lon + half, lat - half],
@@ -63,9 +63,9 @@ async function seedConflict(users) {
 
   // Risk zones (polygons) around Yala National Park
   const zoneDefs = [
-    { name: "High-Risk Zone 03", zoneType: "HIGH_RISK_AREA", description: "Near Kumbuk Wewa Village, North Central Province", lat: 6.39, lon: 81.55 },
-    { name: "Palatupana Village Border", zoneType: "COMMUNITY_SETTLEMENT", description: "Palatupana village boundary, Hambantota District", lat: 6.33, lon: 81.49 },
-    { name: "Tissa Road Corridor", zoneType: "MIGRATION_CORRIDOR", description: "Tissamaharama to Kataragama road crossing", lat: 6.365, lon: 81.51 },
+    { name: "High-Risk Zone 03", zoneType: "HIGH_RISK_AREA", description: "Near Kumbuk Wewa Village, North Central Province", lat: 6.48, lon: 81.55 },
+    { name: "Palatupana Village Border", zoneType: "COMMUNITY_SETTLEMENT", description: "Palatupana village boundary, Hambantota District", lat: 6.42, lon: 81.49 },
+    { name: "Tissa Road Corridor", zoneType: "MIGRATION_CORRIDOR", description: "Tissamaharama to Kataragama road crossing", lat: 6.455, lon: 81.51 },
   ];
   const zones = {};
   for (const z of zoneDefs) {
@@ -81,9 +81,9 @@ async function seedConflict(users) {
 
   // Animals and their collars (positions are outside every zone, so nothing alerts yet)
   const animalDefs = [
-    { identifier: "Elephant E-12", species: "Asian Elephant", riskStatus: "HIGH", lat: 6.43, lon: 81.6 },
-    { identifier: "Elephant E-07", species: "Asian Elephant", riskStatus: "MEDIUM", lat: 6.3, lon: 81.44 },
-    { identifier: "Leopard L-03", species: "Sri Lankan Leopard", riskStatus: "LOW", lat: 6.28, lon: 81.5 },
+    { identifier: "Elephant E-12", species: "Asian Elephant", riskStatus: "HIGH", lat: 6.52, lon: 81.6 },
+    { identifier: "Elephant E-07", species: "Asian Elephant", riskStatus: "MEDIUM", lat: 6.39, lon: 81.44 },
+    { identifier: "Leopard L-03", species: "Sri Lankan Leopard", riskStatus: "LOW", lat: 6.37, lon: 81.5 },
   ];
   const animals = {};
   const collars = {};
@@ -107,7 +107,7 @@ async function seedConflict(users) {
   // 1) A new alert nobody has acknowledged yet: the GPS collar of E-12 entered Zone 03
   const zone03 = zones["High-Risk Zone 03"];
   const alertNew = await WildlifeConflictAlert.create({
-    latitude: 6.3905,
+    latitude: 6.4805,
     longitude: 81.5498,
     severity: "HIGH",
     description: "Elephant E-12 has entered a configured high-risk zone.",
@@ -119,13 +119,13 @@ async function seedConflict(users) {
   });
   await GPSCollar.updateOne(
     { _id: collars["Elephant E-12"]._id },
-    { lastLatitude: 6.3905, lastLongitude: 81.5498, lastUpdated: new Date() }
+    { lastLatitude: 6.4805, lastLongitude: 81.5498, lastUpdated: new Date() }
   );
 
   // 2) An alert from a verified community report, acknowledged and in progress
   const report = await CommunityReport.create({
     reportType: "ANIMAL_SIGHTING",
-    latitude: 6.332,
+    latitude: 6.422,
     longitude: 81.489,
     description: "Two elephants near the paddy fields, one is breaking the fence.",
     locationName: "Palatupana paddy fields",
@@ -136,7 +136,7 @@ async function seedConflict(users) {
     reportedAt: hoursAgo(5.5),
   });
   const alertProgress = await WildlifeConflictAlert.create({
-    latitude: 6.332,
+    latitude: 6.422,
     longitude: 81.489,
     severity: "HIGH",
     status: "IN_PROGRESS",
@@ -166,7 +166,7 @@ async function seedConflict(users) {
 
   // 3) A resolved alert from last week
   const alertDone = await WildlifeConflictAlert.create({
-    latitude: 6.3652,
+    latitude: 6.4552,
     longitude: 81.5108,
     severity: "MEDIUM",
     status: "RESOLVED",
@@ -210,7 +210,7 @@ async function seedConflict(users) {
   for (const [d, severity, who, zoneName] of history) {
     const z = zones[zoneName];
     await WildlifeConflictAlert.create({
-      latitude: 6.33 + (d % 7) * 0.01,
+      latitude: 6.42 + (d % 7) * 0.01,
       longitude: 81.49 + (d % 5) * 0.01,
       severity,
       status: "RESOLVED",
@@ -231,7 +231,7 @@ async function seedConflict(users) {
   // Two community reports still waiting for the liaison officer
   await CommunityReport.create({
     reportType: "CROP_DAMAGE",
-    latitude: 6.3702,
+    latitude: 6.4602,
     longitude: 81.5121,
     description: "Crops damaged overnight behind the temple road.",
     locationName: "Temple road",
@@ -240,7 +240,7 @@ async function seedConflict(users) {
   });
   await CommunityReport.create({
     reportType: "ANIMAL_SIGHTING",
-    latitude: 6.3915,
+    latitude: 6.4815,
     longitude: 81.5528,
     description: "A herd of about five elephants at the edge of the paddy fields.",
     locationName: "Kataragama paddy fields",
@@ -290,24 +290,24 @@ async function seedIncidents(users) {
   ];
   const photos = ["photo-1448375240586-882707db888b", "photo-1441974231531-c6227db76b6e", "photo-1425082661705-1834bfd09dca"];
   const defs = [
-    { type: "Illegal Snare", lat: 6.372, lon: 81.521, sev: "High", d: 1, by: ranger, text: "Wire snare found near the river, hidden in vegetation. Looks freshly set." },
-    { type: "Animal Carcase", lat: 6.355, lon: 81.498, sev: "Medium", d: 3, by: ranger, text: "Carcass of a spotted deer, signs of natural predation, no human activity seen." },
-    { type: "Illegal Campsite", lat: 6.341, lon: 81.536, sev: "Medium", d: 5, by: ranger2, text: "Abandoned campsite with a fire pit and food waste at the south ridge." },
-    { type: "Poaching Incident", lat: 6.388, lon: 81.547, sev: "Critical", d: 9, by: ranger2, text: "Gunshot heard and fresh vehicle tracks leading to the northern boundary." },
-    { type: "Injured Animal", lat: 6.329, lon: 81.512, sev: "High", d: 14, by: ranger, text: "Injured elephant calf limping near the water hole, herd staying close." },
-    { type: "Illegal Snare", lat: 6.376, lon: 81.529, sev: "High", d: 22, by: ranger, text: "Two wire snares along an animal trail close to the village boundary." },
-    { type: "Animal Carcase", lat: 6.361, lon: 81.505, sev: "Low", d: 33, by: ranger2, text: "Old carcass of a wild boar, decomposed, cause undetermined." },
-    { type: "Poaching Incident", lat: 6.394, lon: 81.556, sev: "High", d: 41, by: ranger, text: "Poachers' camp found with traps and dried meat near the eastern edge." },
-    { type: "Illegal Snare", lat: 6.373, lon: 81.523, sev: "High", d: 48, by: ranger2, text: "Wire snare line found along the stream bank near the first ranger post." },
-    { type: "Injured Animal", lat: 6.347, lon: 81.5, sev: "Medium", d: 57, by: ranger, text: "Injured sambar deer with a leg wound, veterinary team informed." },
-    { type: "Illegal Campsite", lat: 6.343, lon: 81.538, sev: "Low", d: 66, by: ranger2, text: "Remains of a small campsite, no people present, area cleared." },
-    { type: "Animal Carcase", lat: 6.389, lon: 81.549, sev: "Medium", d: 75, by: ranger, text: "Fresh elephant carcass near the village fence, cause under investigation." },
-    { type: "Poaching Incident", lat: 6.391, lon: 81.551, sev: "Critical", d: 88, by: ranger2, text: "Two armed intruders seen at night near the water hole, left before the team arrived." },
-    { type: "Illegal Snare", lat: 6.371, lon: 81.52, sev: "High", d: 97, by: ranger, text: "Three snares removed from the north ridge trail, one still holding a hare." },
-    { type: "Injured Animal", lat: 6.33, lon: 81.49, sev: "High", d: 112, by: ranger2, text: "Young elephant with a snare wound around the foot, treated on site." },
-    { type: "Illegal Campsite", lat: 6.358, lon: 81.512, sev: "Medium", d: 126, by: ranger, text: "Large illegal campsite with fire pits and cut wood near the river bend." },
-    { type: "Animal Carcase", lat: 6.37, lon: 81.518, sev: "Low", d: 139, by: ranger2, text: "Decomposed carcass of a water buffalo, no signs of poaching." },
-    { type: "Poaching Incident", lat: 6.387, lon: 81.546, sev: "High", d: 152, by: ranger, text: "Shell casings and blood trail found near the northern boundary road." },
+    { type: "Illegal Snare", lat: 6.462, lon: 81.521, sev: "High", d: 1, by: ranger, text: "Wire snare found near the river, hidden in vegetation. Looks freshly set." },
+    { type: "Animal Carcase", lat: 6.445, lon: 81.498, sev: "Medium", d: 3, by: ranger, text: "Carcass of a spotted deer, signs of natural predation, no human activity seen." },
+    { type: "Illegal Campsite", lat: 6.431, lon: 81.536, sev: "Medium", d: 5, by: ranger2, text: "Abandoned campsite with a fire pit and food waste at the south ridge." },
+    { type: "Poaching Incident", lat: 6.478, lon: 81.547, sev: "Critical", d: 9, by: ranger2, text: "Gunshot heard and fresh vehicle tracks leading to the northern boundary." },
+    { type: "Injured Animal", lat: 6.419, lon: 81.512, sev: "High", d: 14, by: ranger, text: "Injured elephant calf limping near the water hole, herd staying close." },
+    { type: "Illegal Snare", lat: 6.466, lon: 81.529, sev: "High", d: 22, by: ranger, text: "Two wire snares along an animal trail close to the village boundary." },
+    { type: "Animal Carcase", lat: 6.451, lon: 81.505, sev: "Low", d: 33, by: ranger2, text: "Old carcass of a wild boar, decomposed, cause undetermined." },
+    { type: "Poaching Incident", lat: 6.484, lon: 81.556, sev: "High", d: 41, by: ranger, text: "Poachers' camp found with traps and dried meat near the eastern edge." },
+    { type: "Illegal Snare", lat: 6.463, lon: 81.523, sev: "High", d: 48, by: ranger2, text: "Wire snare line found along the stream bank near the first ranger post." },
+    { type: "Injured Animal", lat: 6.437, lon: 81.5, sev: "Medium", d: 57, by: ranger, text: "Injured sambar deer with a leg wound, veterinary team informed." },
+    { type: "Illegal Campsite", lat: 6.433, lon: 81.538, sev: "Low", d: 66, by: ranger2, text: "Remains of a small campsite, no people present, area cleared." },
+    { type: "Animal Carcase", lat: 6.479, lon: 81.549, sev: "Medium", d: 75, by: ranger, text: "Fresh elephant carcass near the village fence, cause under investigation." },
+    { type: "Poaching Incident", lat: 6.481, lon: 81.551, sev: "Critical", d: 88, by: ranger2, text: "Two armed intruders seen at night near the water hole, left before the team arrived." },
+    { type: "Illegal Snare", lat: 6.461, lon: 81.52, sev: "High", d: 97, by: ranger, text: "Three snares removed from the north ridge trail, one still holding a hare." },
+    { type: "Injured Animal", lat: 6.42, lon: 81.49, sev: "High", d: 112, by: ranger2, text: "Young elephant with a snare wound around the foot, treated on site." },
+    { type: "Illegal Campsite", lat: 6.448, lon: 81.512, sev: "Medium", d: 126, by: ranger, text: "Large illegal campsite with fire pits and cut wood near the river bend." },
+    { type: "Animal Carcase", lat: 6.46, lon: 81.518, sev: "Low", d: 139, by: ranger2, text: "Decomposed carcass of a water buffalo, no signs of poaching." },
+    { type: "Poaching Incident", lat: 6.477, lon: 81.546, sev: "High", d: 152, by: ranger, text: "Shell casings and blood trail found near the northern boundary road." },
   ];
   for (const [i, d] of defs.entries()) {
     await Incident.create({

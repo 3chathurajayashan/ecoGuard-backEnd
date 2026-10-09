@@ -33,13 +33,13 @@ export default async function patrolChecks({ ranger, ranger2, manager, researche
     const ok = await call(manager.token, "POST", "/patrol-routes", {
       name: `Smoke Trail ${Date.now()}`,
       parkName: "Yala National Park",
-      startPoint: { name: "Gate", latitude: 6.31, longitude: 81.41 },
-      endPoint: { name: "Tank", latitude: 6.33, longitude: 81.43 },
+      startPoint: { name: "Gate", latitude: 6.40, longitude: 81.41 },
+      endPoint: { name: "Tank", latitude: 6.42, longitude: 81.43 },
       distanceKm: 3.1,
       estimatedDurationMinutes: 70,
       routePoints: [
-        { name: "Gate", latitude: 6.31, longitude: 81.41 },
-        { name: "Tank", latitude: 6.33, longitude: 81.43 },
+        { name: "Gate", latitude: 6.40, longitude: 81.41 },
+        { name: "Tank", latitude: 6.42, longitude: 81.43 },
       ],
     });
     assert.equal(ok.status, 201);
@@ -84,7 +84,7 @@ export default async function patrolChecks({ ranger, ranger2, manager, researche
       patrolId,
       assignmentId: ranger2Assignment._id,
       startTime: new Date(t0).toISOString(),
-      latitude: 6.31,
+      latitude: 6.40,
       longitude: 81.41,
     });
     assert.equal(r.status, 201);
@@ -96,7 +96,7 @@ export default async function patrolChecks({ ranger, ranger2, manager, researche
     const r = await call(ranger.token, "POST", "/patrols/start", { patrolId: randomUUID(), assignmentId: ranger2Assignment._id });
     assert.equal(r.status, 403);
   });
-  const live = auto(6.32, 81.42, 30);
+  const live = auto(6.41, 81.42, 30);
   await check("live GPS points are added once, duplicates ignored", async () => {
     const first = await call(ranger2.token, "POST", `/patrols/${patrolId}/waypoints`, { waypoints: [live] });
     assert.equal(first.status, 200);
@@ -106,7 +106,7 @@ export default async function patrolChecks({ ranger, ranger2, manager, researche
   });
   await check("a manual waypoint needs a description; bad coordinates are refused", async () => {
     const noDesc = await call(ranger2.token, "POST", `/patrols/${patrolId}/waypoints`, {
-      waypoints: [{ ...auto(6.32, 81.42, 31), type: "MANUAL", description: "  " }],
+      waypoints: [{ ...auto(6.41, 81.42, 31), type: "MANUAL", description: "  " }],
     });
     assert.equal(noDesc.status, 400);
     assert.match(noDesc.data.errors.join(" "), /description is required/);
@@ -115,7 +115,7 @@ export default async function patrolChecks({ ranger, ranger2, manager, researche
   });
 
   const manual = {
-    ...auto(6.322, 81.424, 40),
+    ...auto(6.412, 81.424, 40),
     type: "MANUAL",
     category: "Animal Sighting",
     description: "Elephant tracks near the tank (GPS unavailable)",
@@ -128,7 +128,7 @@ export default async function patrolChecks({ ranger, ranger2, manager, researche
     status: "COMPLETED",
     syncStatus: "PENDING_SYNC",
     totalDistance: 3.4,
-    waypoints: [auto(6.31, 81.41, 0), live, manual, auto(6.33, 81.43, 68)],
+    waypoints: [auto(6.40, 81.41, 0), live, manual, auto(6.42, 81.43, 68)],
   };
   await check("only COMPLETED patrols can be synchronised", async () => {
     const r = await call(ranger2.token, "POST", "/patrols/sync", { ...finished, status: "IN_PROGRESS" });

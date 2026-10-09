@@ -126,7 +126,7 @@ const main = async () => {
   const collarOf = (identifier) => collars.find((c) => c.animalId.identifier === identifier);
   let autoAlert;
   await check("ping outside every zone: tracking only, no alert", async () => {
-    const r = await call(ranger.token, "PATCH", `/gps-collars/${collarOf("Leopard L-03")._id}/location`, { latitude: 6.45, longitude: 81.62 });
+    const r = await call(ranger.token, "PATCH", `/gps-collars/${collarOf("Leopard L-03")._id}/location`, { latitude: 6.54, longitude: 81.62 });
     assert.equal(r.status, 200);
     assert.equal(r.data.alertCreated, false);
     assert.equal(r.data.insideRiskZone, false);
@@ -136,7 +136,7 @@ const main = async () => {
     assert.equal(r.status, 400);
   });
   await check("ping inside a risk zone raises an alert with a ranger assigned", async () => {
-    const r = await call(ranger.token, "PATCH", `/gps-collars/${collarOf("Elephant E-07")._id}/location`, { latitude: 6.3902, longitude: 81.5502 });
+    const r = await call(ranger.token, "PATCH", `/gps-collars/${collarOf("Elephant E-07")._id}/location`, { latitude: 6.4802, longitude: 81.5502 });
     assert.equal(r.status, 200);
     assert.equal(r.data.alertCreated, true);
     autoAlert = r.data.alert;
@@ -145,7 +145,7 @@ const main = async () => {
     assert.equal(autoAlert.status, "NEW");
   });
   await check("a second ping in the same zone does not duplicate the alert", async () => {
-    const r = await call(ranger.token, "PATCH", `/gps-collars/${collarOf("Elephant E-07")._id}/location`, { latitude: 6.3903, longitude: 81.5503 });
+    const r = await call(ranger.token, "PATCH", `/gps-collars/${collarOf("Elephant E-07")._id}/location`, { latitude: 6.4803, longitude: 81.5503 });
     assert.equal(r.data.alertCreated, false);
     assert.equal(r.data.alert._id, autoAlert._id);
   });
@@ -163,7 +163,7 @@ const main = async () => {
   await check("villager submits a sighting", async () => {
     const r = await call(villager.token, "POST", "/community-reports", {
       reportType: "ANIMAL_SIGHTING",
-      latitude: 6.3898,
+      latitude: 6.4798,
       longitude: 81.5499,
       description: "Elephant eating crops at the edge of the field.",
       locationName: "Kataragama paddy fields",
@@ -270,7 +270,7 @@ const main = async () => {
   section("Re-routing when the primary officer is unreachable");
   await check("the alert moves to another ranger and the first is remembered", async () => {
     // a fresh alert from the other elephant
-    const ping = await call(ranger.token, "PATCH", `/gps-collars/${collarOf("Elephant E-12")._id}/location`, { latitude: 6.3301, longitude: 81.4902 });
+    const ping = await call(ranger.token, "PATCH", `/gps-collars/${collarOf("Elephant E-12")._id}/location`, { latitude: 6.4201, longitude: 81.4902 });
     const fresh = ping.data.alert;
     assert.ok(fresh, "alert from collar ping");
     const was = fresh.assignedOfficer;

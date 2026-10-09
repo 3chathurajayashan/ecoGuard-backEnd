@@ -26,7 +26,7 @@ export default async function incidentChecks({ ranger, manager, villager, call, 
     const r = await call(ranger.token, "POST", "/incidents", {
       incidentType: "Illegal Snare",
       description: "A wire snare near the river.",
-      latitude: 6.37,
+      latitude: 6.46,
       longitude: 81.52,
     });
     assert.equal(r.status, 400);
@@ -44,7 +44,7 @@ export default async function incidentChecks({ ranger, manager, villager, call, 
     clientId,
     incidentType: "Illegal Campsite",
     description: "Abandoned campsite with fire pit near the south ridge.",
-    latitude: 6.341,
+    latitude: 6.431,
     longitude: 81.536,
     locationSource: "Automatic GPS",
     severity: "Medium",
@@ -68,7 +68,7 @@ export default async function incidentChecks({ ranger, manager, villager, call, 
     const r = await call(ranger.token, "POST", "/incidents/sync", {
       incidents: [
         { clientId: `${clientId}-bad`, incidentType: "Illegal Snare", description: "short", latitude: 6.3, longitude: 81.5 },
-        { clientId: `${clientId}-ok`, incidentType: "Animal Carcase", description: "Carcass of a spotted deer near the tank.", latitude: 6.35, longitude: 81.5 },
+        { clientId: `${clientId}-ok`, incidentType: "Animal Carcase", description: "Carcass of a spotted deer near the tank.", latitude: 6.44, longitude: 81.5 },
       ],
     });
     assert.equal(r.data.data.successful.length, 1);
