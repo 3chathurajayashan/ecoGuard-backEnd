@@ -10,6 +10,13 @@ class IncidentService {
       throw error;
     }
 
+    // A report that was saved offline is sent again until it succeeds. The device's own id
+    // (clientId) makes that safe: the same report is never stored twice.
+    if (data.clientId) {
+      const existing = await Incident.findOne({ clientId: data.clientId });
+      if (existing) return existing;
+    }
+
     const evidence = files.map(file => ({
       url: file.path,
       resourceType: file.mimetype.startsWith("video") ? "video" : "image",
@@ -48,7 +55,12 @@ class IncidentService {
           }
         }
         
-        const incidentData = { ...data, reportedBy: userId, syncStatus: "Synchronized" };
+        // Devices queue the form values (latitude/longitude); the stored shape is a GeoJSON point
+        const { latitude, longitude, ...rest } = data;
+        const incidentData = { ...rest, reportedBy: userId, syncStatus: "Synchronized" };
+        if (!incidentData.location && latitude != null && longitude != null) {
+          incidentData.location = { type: "Point", coordinates: [parseFloat(longitude), parseFloat(latitude)] };
+        }
         const incident = new Incident(incidentData);
         const savedIncident = await incident.save();
         NotificationService.notifyManagement(savedIncident);
