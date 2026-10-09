@@ -8,7 +8,7 @@ import {
   getMyReports,
   getIncidentTypes,
   getAllIncidentsMapData
-} from "../controllers/incidentController.js";
+} from "../Controllers/incidentController.js";
 import auth from "../middleware/auth.js";
 import upload from "../middleware/upload.js";
 

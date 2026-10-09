@@ -1,4 +1,4 @@
-import Incident from "../models/Incident.js";
+import Incident from "../Models/Incident.js";
 import NotificationService from "./notificationService.js";
 import { cloudinary } from "../config/cloudinary.js";
 

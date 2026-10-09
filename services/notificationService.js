@@ -1,5 +1,5 @@
-import Notification from "../models/Notification.js";
-import User from "../models/User.js";
+import Notification from "../Models/Notification.js";
+import User from "../Models/User.js";
 
 class NotificationService {
   async notifyManagement(incident) {

@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
-import Incident from "../models/Incident.js";
-import Notification from "../models/Notification.js";
-import User from "../models/User.js";
+import Incident from "../Models/Incident.js";
+import Notification from "../Models/Notification.js";
+import User from "../Models/User.js";
 
 let mongoServer;
 

@@ -1,5 +1,5 @@
 import IncidentService from "../services/incidentService.js";
-import Incident from "../models/Incident.js";
+import Incident from "../Models/Incident.js";
 
 export const createIncident = async (req, res, next) => {
   try {
