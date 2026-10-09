@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon app.js",
-    "test": "node --experimental-vm-modules node_modules/.bin/jest --verbose",
-    "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage --verbose"
+    "test": "node --no-warnings --experimental-vm-modules node_modules/.bin/jest --verbose",
+    "test:coverage": "node --no-warnings --experimental-vm-modules node_modules/.bin/jest --coverage --verbose"
   },
   "keywords": [],
   "author": "",

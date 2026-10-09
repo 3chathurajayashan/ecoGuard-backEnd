@@ -55,6 +55,20 @@ export const getMyReports = async (req, res, next) => {
   }
 };
 
+export const getAllIncidentsMapData = async (req, res, next) => {
+  try {
+    // Fetch incidents to display on the map. 
+    // Select only the fields necessary for the map to save bandwidth.
+    const incidents = await Incident.find({})
+      .select("incidentType location severity description createdAt evidence")
+      .sort({ createdAt: -1 });
+      
+    res.status(200).json({ success: true, data: incidents });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getIncidentTypes = (req, res) => {
   res.status(200).json({
     success: true,

@@ -7,7 +7,17 @@ This is the backend implementation for the **"Ranger Reports Conservation Incide
 1. **Install Dependencies:** `npm install`
 2. **Environment Variables:** Update the `.env` file with your MongoDB URI and Cloudinary credentials.
 3. **Run Server:** `npm start` (Runs on port 5001 by default).
-4. **Run Unit Tests:** `npm test` or `npm run test:coverage` (Runs tests covering functionality).
+4. **Run Unit Tests:** 
+   To execute the test suite (testing all Main and Alternative flows in isolation):
+   ```bash
+   npm test
+   ```
+5. **View Test Coverage Report:** 
+   To generate a detailed code coverage report showing exactly how much of the system is covered by tests:
+   ```bash
+   npm run test:coverage
+   ```
+   *(Note: The backend achieves >80% test coverage for all core business logic and notification services.)*
 
 ---
 

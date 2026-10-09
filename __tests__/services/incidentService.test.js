@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import mongoose from "mongoose";
 import IncidentService from "../../services/incidentService.js";
 import NotificationService from "../../services/notificationService.js";
@@ -13,12 +14,18 @@ jest.mock("../../config/cloudinary.js", () => ({
 describe("IncidentService", () => {
   let rangerId;
 
+  beforeAll(() => {
+    // Suppress expected console.error logs from dotenv and others during tests to keep output clean
+    jest.spyOn(console, "error").mockImplementation(() => {});
+  });
+
   beforeEach(async () => {
     const ranger = await User.create({
-      name: "Test Ranger",
+      firstName: "Test",
+      lastName: "Ranger",
       email: "test@test.com",
-      password: "pass",
-      role: "Ranger"
+      password: "password123",
+      role: "RANGER"
     });
     rangerId = ranger._id;
   });

@@ -4,7 +4,8 @@ import User from "../models/User.js";
 class NotificationService {
   async notifyManagement(incident) {
     try {
-      const managers = await User.find({ role: { $in: ["Park Manager", "Conservation Researcher", "Community Liaison Officer"] } });
+      // 1. Notify Management
+      const managers = await User.find({ role: { $in: ["PARK_MANAGER", "CONSERVATION_RESEARCHER", "COMMUNITY_LIAISON_OFFICER"] } });
       
       const notifications = managers.map(manager => ({
         recipientRole: manager.role,
@@ -15,11 +16,21 @@ class NotificationService {
         incidentId: incident._id
       }));
 
+      // 2. Notify the Ranger who submitted it (Confirmation)
+      notifications.push({
+        recipientRole: "RANGER",
+        recipient: incident.reportedBy,
+        type: "Incident Report",
+        title: "Report Submitted Successfully",
+        message: `Your ${incident.incidentType} report has been successfully delivered to the Park Manager.`,
+        incidentId: incident._id
+      });
+
       if (notifications.length > 0) {
         await Notification.insertMany(notifications);
       }
     } catch (error) {
-      console.error("Failed to send management notifications:", error);
+      console.error("Failed to send notifications:", error);
     }
   }
 
