@@ -148,6 +148,7 @@ async function seedConflict(users) {
     assignedOfficer: ranger2._id,
     acknowledgedBy: ranger2._id,
     acknowledgedAt: hoursAgo(4.5),
+    createdAt: hoursAgo(5),
   });
   report.alertId = alertProgress._id;
   await report.save();
@@ -191,6 +192,41 @@ async function seedConflict(users) {
     performedBy: ranger._id,
     responseTime: daysAgo(6.05),
   });
+
+  // Older resolved alerts so the trend charts span several months
+  const history = [
+    [14, "MEDIUM", "Elephant E-07", "Tissa Road Corridor"],
+    [27, "HIGH", "Elephant E-12", "High-Risk Zone 03"],
+    [33, "MEDIUM", "Elephant E-07", "Tissa Road Corridor"],
+    [48, "HIGH", "Elephant E-12", "High-Risk Zone 03"],
+    [55, "LOW", "Leopard L-03", "Palatupana Village Border"],
+    [63, "HIGH", "Elephant E-12", "Palatupana Village Border"],
+    [78, "MEDIUM", "Elephant E-07", "High-Risk Zone 03"],
+    [92, "HIGH", "Elephant E-12", "High-Risk Zone 03"],
+    [104, "MEDIUM", "Elephant E-07", "Tissa Road Corridor"],
+    [121, "LOW", "Leopard L-03", "Palatupana Village Border"],
+    [140, "MEDIUM", "Elephant E-12", "High-Risk Zone 03"],
+  ];
+  for (const [d, severity, who, zoneName] of history) {
+    const z = zones[zoneName];
+    await WildlifeConflictAlert.create({
+      latitude: 6.33 + (d % 7) * 0.01,
+      longitude: 81.49 + (d % 5) * 0.01,
+      severity,
+      status: "RESOLVED",
+      description: `${who} entered ${zoneName}.`,
+      detectedBy: "GPS_COLLAR",
+      locationName: z.description,
+      sourceAnimal: animals[who]._id,
+      sourceRiskZone: z._id,
+      assignedOfficer: d % 2 ? ranger._id : ranger2._id,
+      acknowledgedBy: d % 2 ? ranger._id : ranger2._id,
+      acknowledgedAt: new Date(daysAgo(d).getTime() + (8 + (d % 11)) * 60_000),
+      closedAt: new Date(daysAgo(d).getTime() + 3 * 3600_000),
+      closure: { finalStatus: "RESOLVED", resolvedAt: new Date(daysAgo(d).getTime() + 3 * 3600_000), remarks: "Animal moved back into the park.", closedBy: ranger._id },
+      createdAt: daysAgo(d),
+    });
+  }
 
   // Two community reports still waiting for the liaison officer
   await CommunityReport.create({
@@ -262,6 +298,16 @@ async function seedIncidents(users) {
     { type: "Illegal Snare", lat: 6.376, lon: 81.529, sev: "High", d: 22, by: ranger, text: "Two wire snares along an animal trail close to the village boundary." },
     { type: "Animal Carcase", lat: 6.361, lon: 81.505, sev: "Low", d: 33, by: ranger2, text: "Old carcass of a wild boar, decomposed, cause undetermined." },
     { type: "Poaching Incident", lat: 6.394, lon: 81.556, sev: "High", d: 41, by: ranger, text: "Poachers' camp found with traps and dried meat near the eastern edge." },
+    { type: "Illegal Snare", lat: 6.373, lon: 81.523, sev: "High", d: 48, by: ranger2, text: "Wire snare line found along the stream bank near the first ranger post." },
+    { type: "Injured Animal", lat: 6.347, lon: 81.5, sev: "Medium", d: 57, by: ranger, text: "Injured sambar deer with a leg wound, veterinary team informed." },
+    { type: "Illegal Campsite", lat: 6.343, lon: 81.538, sev: "Low", d: 66, by: ranger2, text: "Remains of a small campsite, no people present, area cleared." },
+    { type: "Animal Carcase", lat: 6.389, lon: 81.549, sev: "Medium", d: 75, by: ranger, text: "Fresh elephant carcass near the village fence, cause under investigation." },
+    { type: "Poaching Incident", lat: 6.391, lon: 81.551, sev: "Critical", d: 88, by: ranger2, text: "Two armed intruders seen at night near the water hole, left before the team arrived." },
+    { type: "Illegal Snare", lat: 6.371, lon: 81.52, sev: "High", d: 97, by: ranger, text: "Three snares removed from the north ridge trail, one still holding a hare." },
+    { type: "Injured Animal", lat: 6.33, lon: 81.49, sev: "High", d: 112, by: ranger2, text: "Young elephant with a snare wound around the foot, treated on site." },
+    { type: "Illegal Campsite", lat: 6.358, lon: 81.512, sev: "Medium", d: 126, by: ranger, text: "Large illegal campsite with fire pits and cut wood near the river bend." },
+    { type: "Animal Carcase", lat: 6.37, lon: 81.518, sev: "Low", d: 139, by: ranger2, text: "Decomposed carcass of a water buffalo, no signs of poaching." },
+    { type: "Poaching Incident", lat: 6.387, lon: 81.546, sev: "High", d: 152, by: ranger, text: "Shell casings and blood trail found near the northern boundary road." },
   ];
   for (const [i, d] of defs.entries()) {
     await Incident.create({
