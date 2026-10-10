@@ -1,6 +1,6 @@
 import IncidentService from "../services/incidentService.js";
 import Incident from "../models/Incident.js";
-
+//
 export const createIncident = async (req, res, next) => {
   try {
     const incident = await IncidentService.createIncident(req.body, req.files, req.user.id);
@@ -9,7 +9,7 @@ export const createIncident = async (req, res, next) => {
     next(error);
   }
 };
-
+//sync incidents from the mobile app to the backend
 export const syncIncidents = async (req, res, next) => {
   try {
     const results = await IncidentService.syncIncidents(req.body.incidents, req.user.id);

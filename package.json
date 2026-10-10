@@ -30,4 +30,4 @@
     "nodemon": "^3.1.14",
     "supertest": "^7.3.1"
   }
-}
+}//package.json file for the EcoGuard backend project. It includes metadata about the project, such as its name, version, and dependencies. The "scripts" section defines commands for starting the server and running tests. The "dependencies" section lists the libraries required for the application to run, while the "devDependencies" section lists libraries needed for development and testing.

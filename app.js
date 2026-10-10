@@ -9,7 +9,7 @@ import authRoutes from "./routes/authRoutes.js";
 dotenv.config();
 
 const app = express();
-
+//apply middleware to handle CORS (Cross-Origin Resource Sharing) requests from the frontend application running on http://localhost:5173. It allows the frontend to make requests to the backend while including credentials (like cookies) in the requests.
  
 
 app.use(

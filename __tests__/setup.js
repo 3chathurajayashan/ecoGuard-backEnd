@@ -22,7 +22,7 @@ afterAll(async () => {
     await mongoServer.stop();
   }
 });
-
+//afterEach(async () => {
 afterEach(async () => {
   const collections = mongoose.connection.collections;
   for (const key in collections) {

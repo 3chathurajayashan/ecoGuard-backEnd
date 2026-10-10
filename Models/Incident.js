@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-
+//mongoose is an Object Data Modeling (ODM) library for MongoDB and Node.js. It provides a straightforward, schema-based solution to model your application data. It includes built-in type casting, validation, query building, business logic hooks and more, out of the box.
 const incidentSchema = new mongoose.Schema(
   {
     incidentType: {
